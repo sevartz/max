@@ -1,0 +1,54 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ctx
+      POSTGRES_PASSWORD: ctx
+      POSTGRES_DB: ctx
+    # Только localhost: Docker публикует порты в обход файрвола, база не должна торчать наружу.
+    ports:
+      - "127.0.0.1:${DB_HOST_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ctx -d ctx"]
+      interval: 3s
+      retries: 20
+
+  app:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://ctx:ctx@db:5432/ctx
+      MODE: ${MODE:-webhook}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - hf-cache:/cache/huggingface   # модель e5 скачивается один раз
+    # Снаружи приложение доступно только через Caddy (HTTPS); напрямую — лишь с самого сервера.
+    ports:
+      - "127.0.0.1:8000:8000"
+    profiles: ["app", "demo"]
+
+  # HTTPS на 443 с сертификатом Let's Encrypt — MAX принимает webhook только так.
+  caddy:
+    image: caddy:2
+    environment:
+      # В локальном профиле Caddy не запускается, но Compose всё равно подставляет переменные.
+      # Для публичного профиля demo укажите настоящий DOMAIN при запуске.
+      DOMAIN: ${DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./backend/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on:
+      - app
+    profiles: ["demo"]
+
+volumes:
+  pgdata:
+  hf-cache:
+  caddy-data:

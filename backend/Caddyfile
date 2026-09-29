@@ -1,0 +1,7 @@
+{$DOMAIN} {
+	encode gzip
+	# webhook MAX, трекер кликов /r/{token}, postback и витрина — всё в одном приложении
+	reverse_proxy app:8000 {
+		header_up X-Forwarded-For {remote_host}
+	}
+}

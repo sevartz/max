@@ -1,0 +1,24 @@
+{
+  "name": "ctxads-max-miniapp",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite frontend --host 0.0.0.0",
+    "build": "tsc -p frontend/tsconfig.json && vite build frontend",
+    "preview": "vite preview frontend --host 0.0.0.0",
+    "typecheck": "tsc -p frontend/tsconfig.json"
+  },
+  "dependencies": {
+    "@maxhub/max-ui": "^0.5.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.7"
+  }
+}

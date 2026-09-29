@@ -1,0 +1,333 @@
+# Демо-каталог: вымышленные рекламодатели, демо-ИНН и демо-ERID (ОРД в MVP не подключён).
+advertisers:
+  - {key: labtest, name: "ЛабТест", legal_name: "ООО «ЛабТест»", inn: "7700000001", postback_secret: "demo-labtest-secret"}
+  - {key: begun, name: "Бегун", legal_name: "ООО «Бегун Спорт»", inn: "7700000002", postback_secret: "demo-begun-secret"}
+  - {key: zelen, name: "Зелёная тарелка", legal_name: "ООО «Зелёная тарелка»", inn: "7700000003", postback_secret: "demo-zelen-secret"}
+  - {key: tsifra, name: "Цифра", legal_name: "ООО «Цифра Ритейл»", inn: "7700000004", postback_secret: "demo-tsifra-secret"}
+  - {key: znanie, name: "Знание+", legal_name: "АНО ДПО «Знание Плюс»", inn: "7700000005", postback_secret: "demo-znanie-secret"}
+  - {key: kopilka, name: "Копилка", legal_name: "АО «Копилка Финанс»", inn: "7700000006", postback_secret: "demo-kopilka-secret"}
+  - {key: marshrut, name: "Маршрут", legal_name: "ООО «Маршрут Тревел»", inn: "7700000007", postback_secret: "demo-marshrut-secret"}
+  - {key: siyanie, name: "Сияние", legal_name: "ООО «Сияние Косметикс»", inn: "7700000008", postback_secret: "demo-siyanie-secret"}
+  - {key: karapuz, name: "Карапуз", legal_name: "ООО «Карапуз»", inn: "7700000009", postback_secret: "demo-karapuz-secret"}
+  - {key: vitamir, name: "ВитаМир", legal_name: "ООО «ВитаМир»", inn: "7700000010", postback_secret: "demo-vitamir-secret"}
+
+ads:
+  # --- medicine (регулируемая) ---
+  - key: labtest-glucose
+    advertiser: labtest
+    title: "ЛабТест — анализ крови на глюкозу со скидкой 20%"
+    body: "Проверьте уровень сахара в крови: анализ на глюкозу и гликированный гемоглобин. Результат за 1 день, сдать можно без записи рядом с домом."
+    url: "https://example.com/labtest/glucose"
+    category: medicine
+    erid: "DEMO-2VtzqwLAB1"
+    pricing_model: cpm
+    price: 250
+    budget: 20000
+  - key: labtest-checkup
+    advertiser: labtest
+    title: "ЛабТест — чекап «Здоровое сердце»"
+    body: "Комплекс анализов крови: холестерин, давление сосудов, маркеры воспаления. Консультация врача по результатам бесплатно."
+    url: "https://example.com/labtest/heart"
+    category: medicine
+    erid: "DEMO-2VtzqwLAB2"
+    pricing_model: cpc
+    price: 18
+    budget: 15000
+  - key: labtest-vitd
+    advertiser: labtest
+    title: "ЛабТест — анализ на витамин D"
+    body: "Усталость, плохой сон и слабый иммунитет часто связаны с дефицитом витамина D. Сдайте анализ крови со скидкой 15%."
+    url: "https://example.com/labtest/vitd"
+    category: medicine
+    erid: "DEMO-2VtzqwLAB3"
+    pricing_model: cpa
+    price: 150
+    budget: 10000
+
+  # --- health ---
+  - key: vitamir-omega
+    advertiser: vitamir
+    title: "ВитаМир — омега-3 и витамины для ЗОЖ"
+    body: "Витамины и омега-3 для тех, кто следит за здоровьем, питанием и иммунитетом. Доставка за 1 день."
+    url: "https://example.com/vitamir/omega"
+    category: health
+    erid: "DEMO-2VtzqwVIT1"
+    pricing_model: cpm
+    price: 180
+    budget: 12000
+  - key: vitamir-sleep
+    advertiser: vitamir
+    title: "ВитаМир — магний для крепкого сна"
+    body: "Магний B6 помогает справиться со стрессом и наладить сон. Полезная привычка для здорового образа жизни."
+    url: "https://example.com/vitamir/sleep"
+    category: health
+    erid: "DEMO-2VtzqwVIT2"
+    pricing_model: cpc
+    price: 12
+    budget: 8000
+  - key: zelen-diet
+    advertiser: zelen
+    title: "Зелёная тарелка — рацион без сахара и фастфуда"
+    body: "Сбалансированное питание на неделю: без сахара, без фастфуда, с подсчётом калорий. Для похудения и здоровья."
+    url: "https://example.com/zelen/diet"
+    category: health
+    erid: "DEMO-2VtzqwZEL1"
+    pricing_model: cpa
+    price: 300
+    budget: 15000
+
+  # --- sport ---
+  - key: begun-shoes
+    advertiser: begun
+    title: "Бегун — беговые кроссовки со скидкой до 30%"
+    body: "Кроссовки для бега по асфальту и трейлу. Подберём модель под ваш бег, стопу и тренировки. Примерка перед покупкой."
+    url: "https://example.com/begun/shoes"
+    category: sport
+    erid: "DEMO-2VtzqwBEG1"
+    pricing_model: cpm
+    price: 220
+    budget: 20000
+  - key: begun-watch
+    advertiser: begun
+    title: "Бегун — спортивные часы с пульсометром"
+    body: "Считают пульс, темп и дистанцию на пробежке и тренировке. Готовьтесь к марафону по плану."
+    url: "https://example.com/begun/watch"
+    category: sport
+    erid: "DEMO-2VtzqwBEG2"
+    pricing_model: cpc
+    price: 20
+    budget: 10000
+  - key: begun-fitness
+    advertiser: begun
+    title: "Бегун — абонемент в фитнес-клуб, первая неделя бесплатно"
+    body: "Спортзал, бассейн, групповые тренировки и йога. Упражнения с тренером для набора мышц и выносливости."
+    url: "https://example.com/begun/fitness"
+    category: sport
+    erid: "DEMO-2VtzqwBEG3"
+    pricing_model: cpa
+    price: 500
+    budget: 15000
+
+  # --- food ---
+  - key: zelen-delivery
+    advertiser: zelen
+    title: "Зелёная тарелка — доставка готовой еды"
+    body: "Вкусные блюда от шефа с доставкой за час: завтрак, обед и ужин. Рецепты без лишнего сахара."
+    url: "https://example.com/zelen/delivery"
+    category: food
+    erid: "DEMO-2VtzqwZEL2"
+    pricing_model: cpm
+    price: 200
+    budget: 15000
+  - key: zelen-recipes
+    advertiser: zelen
+    title: "Зелёная тарелка — наборы продуктов с рецептами"
+    body: "Готовим дома за 30 минут: продукты и пошаговый рецепт в одной коробке. Кухня разных стран."
+    url: "https://example.com/zelen/boxes"
+    category: food
+    erid: "DEMO-2VtzqwZEL3"
+    pricing_model: cpc
+    price: 15
+    budget: 8000
+  - key: zelen-coffee
+    advertiser: zelen
+    title: "Зелёная тарелка — свежеобжаренный кофе"
+    body: "Кофе в зёрнах с доставкой: обжарка раз в неделю, вкусный завтрак начинается с хорошей чашки."
+    url: "https://example.com/zelen/coffee"
+    category: food
+    erid: "DEMO-2VtzqwZEL4"
+    pricing_model: cpm
+    price: 150
+    budget: 6000
+
+  # --- tech ---
+  - key: tsifra-phone
+    advertiser: tsifra
+    title: "Цифра — смартфоны в рассрочку 0%"
+    body: "Новые смартфоны и гаджеты с гарантией. Перенесём данные и приложения со старого телефона бесплатно."
+    url: "https://example.com/tsifra/phones"
+    category: tech
+    erid: "DEMO-2VtzqwTSI1"
+    pricing_model: cpm
+    price: 300
+    budget: 25000
+  - key: tsifra-laptop
+    advertiser: tsifra
+    title: "Цифра — ноутбуки для работы и программирования"
+    body: "Мощные ноутбуки для разработки, нейросетей и учёбы. Подберём компьютер под ваши задачи."
+    url: "https://example.com/tsifra/laptops"
+    category: tech
+    erid: "DEMO-2VtzqwTSI2"
+    pricing_model: cpc
+    price: 25
+    budget: 12000
+  - key: tsifra-ai
+    advertiser: tsifra
+    title: "Цифра — умная колонка с голосовым ассистентом"
+    body: "Искусственный интеллект дома: музыка, будильник, умный дом и ответы на вопросы голосом."
+    url: "https://example.com/tsifra/speaker"
+    category: tech
+    erid: "DEMO-2VtzqwTSI3"
+    pricing_model: cpa
+    price: 400
+    budget: 10000
+
+  # --- education ---
+  - key: znanie-python
+    advertiser: znanie
+    title: "Знание+ — курс Python с нуля"
+    body: "Онлайн-курс программирования: уроки, практика и проект в портфолио. Навык, который пригодится в любой профессии."
+    url: "https://example.com/znanie/python"
+    category: education
+    erid: "DEMO-2VtzqwZNA1"
+    pricing_model: cpa
+    price: 700
+    budget: 20000
+  - key: znanie-english
+    advertiser: znanie
+    title: "Знание+ — английский язык для путешествий"
+    body: "Разговорный английский за 3 месяца: уроки с преподавателем, практика для поездок и работы."
+    url: "https://example.com/znanie/english"
+    category: education
+    erid: "DEMO-2VtzqwZNA2"
+    pricing_model: cpc
+    price: 22
+    budget: 10000
+  - key: znanie-ege
+    advertiser: znanie
+    title: "Знание+ — подготовка к ЕГЭ"
+    body: "Школьникам: подготовка к экзамену по математике и русскому языку, пробные тесты, разбор ошибок."
+    url: "https://example.com/znanie/ege"
+    category: education
+    erid: "DEMO-2VtzqwZNA3"
+    pricing_model: cpm
+    price: 200
+    budget: 10000
+
+  # --- finance (регулируемая) ---
+  - key: kopilka-deposit
+    advertiser: kopilka
+    title: "Копилка — накопительный счёт до 16% годовых"
+    body: "Откройте накопительный счёт в приложении: процент на остаток каждый день, снятие без потерь."
+    url: "https://example.com/kopilka/deposit"
+    category: finance
+    erid: "DEMO-2VtzqwKOP1"
+    pricing_model: cpa
+    price: 1000
+    budget: 30000
+  - key: kopilka-cashback
+    advertiser: kopilka
+    title: "Копилка — дебетовая карта с кэшбэком 5%"
+    body: "Кэшбэк на продукты, кафе и путешествия. Бесплатное обслуживание и контроль бюджета в приложении."
+    url: "https://example.com/kopilka/card"
+    category: finance
+    erid: "DEMO-2VtzqwKOP2"
+    pricing_model: cpc
+    price: 30
+    budget: 15000
+  - key: kopilka-invest
+    advertiser: kopilka
+    title: "Копилка — инвестиции для начинающих"
+    body: "Начните инвестировать с 1000 ₽: акции, облигации и фонды. Обучение в приложении."
+    url: "https://example.com/kopilka/invest"
+    category: finance
+    erid: "DEMO-2VtzqwKOP3"
+    pricing_model: cpm
+    price: 350
+    budget: 20000
+
+  # --- travel ---
+  - key: marshrut-sea
+    advertiser: marshrut
+    title: "Маршрут — туры на море от 25 000 ₽"
+    body: "Отпуск на море: перелёт, отель и трансфер в одном туре. Путешествия по России и за рубеж."
+    url: "https://example.com/marshrut/sea"
+    category: travel
+    erid: "DEMO-2VtzqwMAR1"
+    pricing_model: cpa
+    price: 800
+    budget: 25000
+  - key: marshrut-mountains
+    advertiser: marshrut
+    title: "Маршрут — походы в горы с гидом"
+    body: "Активный отдых: треккинг в горах Кавказа и Алтая, экскурсии и снаряжение."
+    url: "https://example.com/marshrut/mountains"
+    category: travel
+    erid: "DEMO-2VtzqwMAR2"
+    pricing_model: cpc
+    price: 20
+    budget: 10000
+  - key: marshrut-hotels
+    advertiser: marshrut
+    title: "Маршрут — отели со скидкой до 40%"
+    body: "Бронируйте отели для поездки выходного дня и долгого путешествия. Бесплатная отмена."
+    url: "https://example.com/marshrut/hotels"
+    category: travel
+    erid: "DEMO-2VtzqwMAR3"
+    pricing_model: cpm
+    price: 230
+    budget: 15000
+
+  # --- beauty ---
+  - key: siyanie-skin
+    advertiser: siyanie
+    title: "Сияние — уход за кожей: набор для увлажнения"
+    body: "Крем, тоник и сыворотка для ежедневного ухода за кожей лица. Подходит для чувствительной кожи."
+    url: "https://example.com/siyanie/skin"
+    category: beauty
+    erid: "DEMO-2VtzqwSIY1"
+    pricing_model: cpm
+    price: 200
+    budget: 12000
+  - key: siyanie-hair
+    advertiser: siyanie
+    title: "Сияние — профессиональный уход за волосами"
+    body: "Шампунь и маска для блеска и силы волос. Салонный уход дома."
+    url: "https://example.com/siyanie/hair"
+    category: beauty
+    erid: "DEMO-2VtzqwSIY2"
+    pricing_model: cpc
+    price: 14
+    budget: 8000
+  - key: siyanie-spf
+    advertiser: siyanie
+    title: "Сияние — солнцезащитный крем SPF 50"
+    body: "Защита кожи от солнца на море и в городе. Лёгкая текстура, не оставляет следов."
+    url: "https://example.com/siyanie/spf"
+    category: beauty
+    erid: "DEMO-2VtzqwSIY3"
+    pricing_model: cpa
+    price: 250
+    budget: 8000
+
+  # --- kids ---
+  - key: karapuz-toys
+    advertiser: karapuz
+    title: "Карапуз — развивающие игрушки"
+    body: "Игрушки для малышей и детей постарше: конструкторы, пазлы, творчество. Выбор для родителей."
+    url: "https://example.com/karapuz/toys"
+    category: kids
+    erid: "DEMO-2VtzqwKAR1"
+    pricing_model: cpm
+    price: 190
+    budget: 12000
+  - key: karapuz-school
+    advertiser: karapuz
+    title: "Карапуз — всё для школы"
+    body: "Рюкзаки, канцелярия и форма для школьника. Скидки для многодетных семей."
+    url: "https://example.com/karapuz/school"
+    category: kids
+    erid: "DEMO-2VtzqwKAR2"
+    pricing_model: cpc
+    price: 12
+    budget: 8000
+  - key: karapuz-food
+    advertiser: karapuz
+    title: "Карапуз — детское питание без сахара"
+    body: "Пюре и каши для малышей без добавленного сахара. Полезное питание для детей с первого прикорма."
+    url: "https://example.com/karapuz/food"
+    category: kids
+    erid: "DEMO-2VtzqwKAR3"
+    pricing_model: cpa
+    price: 200
+    budget: 8000

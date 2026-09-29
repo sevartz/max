@@ -1,0 +1,1 @@
+{"update_type": "message_created", "timestamp": 1790000001000, "message": {"sender": {"user_id": 101, "first_name": "Анна", "is_bot": false}, "recipient": {"chat_id": 5001, "chat_type": "dialog", "user_id": 900}, "timestamp": 1790000001000, "body": {"mid": "mid.dialog.1", "seq": 1, "text": "/start"}}, "user_locale": "ru"}

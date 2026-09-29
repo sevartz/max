@@ -1,0 +1,39 @@
+# Зависимости для разработки (pytest, respx, ruff) + основные. Ставить из корня репозитория:
+# .venv/bin/pip install -r backend/requirements-dev.txt
+-r ../requirements.txt
+
+anyio==4.15.1
+    # via httpx
+certifi==2026.7.22
+    # via
+    #   httpcore
+    #   httpx
+colorama==0.4.6 ; sys_platform == 'win32'
+    # via pytest
+h11==0.16.0
+    # via httpcore
+httpcore==1.0.9
+    # via httpx
+httpx==0.28.1
+    # via respx
+idna==3.20
+    # via
+    #   anyio
+    #   httpx
+iniconfig==2.3.0
+    # via pytest
+packaging==26.3
+    # via pytest
+pluggy==1.6.0
+    # via pytest
+pygments==2.21.0
+    # via pytest
+pytest==9.1.1
+    # via pytest-asyncio
+pytest-asyncio==1.4.0
+respx==0.23.1
+ruff==0.16.9
+typing-extensions==4.16.0
+    # via
+    #   anyio
+    #   pytest-asyncio

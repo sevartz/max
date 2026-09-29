@@ -1,0 +1,18 @@
+# Секреты
+.env
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Node / фронтенд
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+
+# Локальное
+.DS_Store
+.claude/settings.local.json

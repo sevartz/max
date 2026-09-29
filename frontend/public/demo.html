@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f5f7fa">
+  <title>Контекст — макет мини-приложения MAX</title>
+  <style>
+    :root {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #1d2633;
+      background: #e9edf4;
+      font-synthesis: none;
+      -webkit-font-smoothing: antialiased;
+      --blue: #337af2;
+      --blue-dark: #195dcc;
+      --muted: #697789;
+      --line: #e6ebf2;
+      --surface: #fff;
+      --page: #f5f7fa;
+      --good: #168a61;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 320px; }
+    button, input, textarea { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid #7eaeff; outline-offset: 2px; }
+    .stage { min-height: 100vh; display: grid; grid-template-columns: minmax(270px, 400px) minmax(320px, 430px); justify-content: center; align-items: center; gap: clamp(32px, 6vw, 112px); padding: 32px; background: radial-gradient(circle at 75% 10%, #f7f9ff 0, transparent 34%), #e9edf4; }
+    .stage-info { align-self: center; }
+    .stage-icon { display: grid; place-items: center; width: 58px; height: 58px; border-radius: 19px; color: white; background: var(--blue); font-size: 24px; font-weight: 800; box-shadow: 0 12px 22px #3979e62e; }
+    .stage-info h1 { max-width: 350px; margin: 28px 0 16px; font-size: clamp(35px, 4.3vw, 54px); line-height: 1.04; letter-spacing: -.06em; }
+    .stage-info p { max-width: 330px; margin: 0 0 28px; color: #617086; font-size: 16px; line-height: 1.55; }
+    .stage-info .hint { display: flex; align-items: center; gap: 11px; color: #687588; font-size: 13px; line-height: 1.4; }
+    .hint-mark { display: grid; place-items: center; flex: 0 0 auto; width: 31px; height: 31px; border: 1px solid #cfdae9; border-radius: 50%; color: #397bf0; background: #fff; font-weight: 700; }
+    .stage-reset { margin-top: 28px; padding: 0; border: 0; background: transparent; color: var(--blue-dark); font-weight: 650; }
+    .phone { display: flex; flex-direction: column; width: min(430px, 100%); height: min(860px, calc(100vh - 64px)); min-height: 590px; margin: auto; overflow: hidden; border: 8px solid #202a39; border-radius: 39px; background: var(--page); box-shadow: 0 28px 70px #2c436433, 0 2px 9px #202a3925; }
+    .max-bar { display: flex; flex: 0 0 auto; align-items: center; gap: 11px; min-height: 69px; padding: 11px 18px; background: var(--surface); border-bottom: 1px solid var(--line); }
+    .max-mark { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 12px; color: white; background: var(--blue); font-size: 17px; font-weight: 800; letter-spacing: -.06em; }
+    .max-title { display: grid; gap: 1px; min-width: 0; }
+    .max-title strong { font-size: 14px; line-height: 1.2; }
+    .max-title span { color: var(--muted); font-size: 11px; }
+    .bar-end { margin-left: auto; color: var(--muted); font-size: 21px; letter-spacing: 2px; transform: translateY(-5px); }
+    .demo-strip { display: flex; justify-content: space-between; align-items: center; flex: 0 0 auto; min-height: 35px; padding: 7px 20px; color: #496582; background: #eaf2ff; font-size: 11px; font-weight: 600; }
+    .demo-strip span:last-child { font-weight: 450; }
+    .screen { flex: 1 1 auto; min-height: 0; padding: 21px 17px 32px; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+    .screen h2 { margin: 0; font-size: 25px; line-height: 1.15; letter-spacing: -.045em; }
+    .screen h3 { margin: 0; font-size: 17px; line-height: 1.27; letter-spacing: -.02em; }
+    .intro { margin: 7px 0 0; color: var(--muted); font-size: 13px; line-height: 1.4; }
+    .head-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 20px; }
+    .heading-action { border: 0; background: transparent; color: var(--blue-dark); font-size: 13px; font-weight: 650; }
+    .section-title { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 23px 2px 11px; }
+    .section-title strong { font-size: 15px; }
+    .section-title span { color: var(--muted); font-size: 12px; }
+    .card { border: 1px solid var(--line); border-radius: 18px; background: var(--surface); box-shadow: 0 2px 9px #263b5810; }
+    .spotlight { position: relative; overflow: hidden; padding: 19px; border-radius: 20px; color: white; background: #327af2; box-shadow: 0 12px 25px #327af230; }
+    .spotlight::before, .spotlight::after { position: absolute; content: ''; border: 1px solid #ffffff2c; border-radius: 50%; pointer-events: none; }
+    .spotlight::before { width: 225px; height: 225px; right: -82px; top: -102px; }
+    .spotlight::after { width: 151px; height: 151px; right: -43px; top: -68px; }
+    .spotlight > * { position: relative; z-index: 1; }
+    .spotlight-top { display: flex; justify-content: space-between; gap: 12px; color: #e5efff; font-size: 12px; }
+    .spotlight h3 { max-width: 265px; margin: 25px 0 9px; font-size: 22px; line-height: 1.12; letter-spacing: -.04em; }
+    .spotlight p { margin: 0 0 18px; color: #e8f1ff; font-size: 13px; }
+    .spotlight-bottom { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    .spotlight-sum { display: grid; gap: 1px; }
+    .spotlight-sum strong { font-size: 24px; letter-spacing: -.04em; }
+    .spotlight-sum span { color: #e0ecff; font-size: 11px; }
+    .white-button { min-height: 40px; padding: 0 14px; border: 0; border-radius: 11px; color: #1d63d1; background: white; font-size: 12px; font-weight: 720; }
+    .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+    .metric { display: grid; gap: 7px; padding: 15px; }
+    .metric span { color: var(--muted); font-size: 12px; }
+    .metric strong { font-size: 23px; line-height: 1; letter-spacing: -.04em; }
+    .list { overflow: hidden; }
+    .list-row { display: flex; width: 100%; align-items: center; gap: 12px; min-height: 74px; padding: 14px; border: 0; border-bottom: 1px solid var(--line); background: #fff; text-align: left; }
+    .list-row:last-child { border-bottom: 0; }
+    .avatar { display: grid; place-items: center; width: 42px; height: 42px; flex: 0 0 auto; border-radius: 14px; color: #345d99; background: #e7f1ff; font-size: 14px; font-weight: 750; }
+    .avatar.green { color: #24866b; background: #e5f5ef; }
+    .avatar.purple { color: #7b63a8; background: #f0eafa; }
+    .row-copy { display: grid; min-width: 0; gap: 5px; flex: 1 1 auto; }
+    .row-copy strong { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+    .row-copy span { color: var(--muted); font-size: 11px; line-height: 1.3; }
+    .chevron { color: #a3adbb; font-size: 25px; font-weight: 300; line-height: 1; }
+    .badge { display: inline-flex; align-items: center; gap: 5px; width: fit-content; padding: 5px 9px; border-radius: 30px; color: var(--good); background: #e9f7f1; font-size: 11px; font-weight: 680; }
+    .badge::before { display: block; width: 5px; height: 5px; border-radius: 50%; background: currentColor; content: ''; }
+    .badge.blue { color: #1d66d7; background: #eaf2ff; }
+    .badge.muted { color: #728093; background: #f0f2f5; }
+    .back { display: inline-flex; align-items: center; gap: 3px; min-height: 31px; margin: -5px 0 10px; padding: 0; border: 0; color: var(--blue-dark); background: transparent; font-size: 13px; font-weight: 600; }
+    .detail-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; }
+    .detail-subtitle { margin: 7px 0 0; color: var(--muted); font-size: 12px; }
+    .proposal-card { padding: 17px; }
+    .proposal-top { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .brand-icon { display: grid; place-items: center; width: 41px; height: 41px; flex: 0 0 auto; border-radius: 13px; color: #1e5cab; background: #e6f0ff; font-size: 19px; font-weight: 800; }
+    .proposal-top span { display: block; color: var(--muted); font-size: 11px; }
+    .proposal-top strong { display: block; margin-top: 2px; font-size: 13px; }
+    .proposal-card h3 { margin-bottom: 8px; font-size: 19px; }
+    .proposal-card > p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .earning { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 17px 0 12px; padding: 13px; border-radius: 12px; color: #14795a; background: #e9f7f0; }
+    .earning span { font-size: 12px; }
+    .earning strong { font-size: 21px; letter-spacing: -.03em; }
+    .proposal-meta { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 11px; }
+    .context { margin-top: 13px; padding: 15px; }
+    .context strong { font-size: 12px; }
+    .context p { margin: 8px 0 0; color: #4f5d70; font-size: 12px; line-height: 1.55; }
+    .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 14px; }
+    .button { min-height: 45px; padding: 10px 14px; border: 0; border-radius: 12px; background: var(--blue); color: white; font-size: 13px; font-weight: 680; }
+    .button:active, .white-button:active { transform: scale(.98); }
+    .button.secondary { color: var(--blue-dark); background: #e9f1ff; }
+    .button.quiet { color: #bf4857; background: #fff0f1; }
+    .button.full { width: 100%; margin-top: 9px; }
+    .button:disabled { opacity: .5; cursor: default; }
+    .setting-card { margin-top: 11px; overflow: hidden; }
+    .setting-head { padding: 16px 15px 12px; }
+    .setting-head h3 { font-size: 14px; }
+    .setting-head p { margin: 4px 0 0; color: var(--muted); font-size: 11px; }
+    .switch-row { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 10px; min-height: 47px; padding: 9px 15px; border: 0; border-top: 1px solid var(--line); background: white; text-align: left; font-size: 12px; }
+    .switch { display: block; position: relative; width: 37px; height: 22px; flex: 0 0 auto; border-radius: 20px; background: #bac3ce; }
+    .switch::after { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px #0002; content: ''; transition: transform .18s ease; }
+    .switch.on { background: var(--blue); }
+    .switch.on::after { transform: translateX(15px); }
+    .ad-summary { display: flex; justify-content: space-between; align-items: flex-end; gap: 15px; padding: 17px; }
+    .ad-summary span { display: block; margin-bottom: 6px; color: var(--muted); font-size: 11px; }
+    .ad-summary strong { font-size: 25px; letter-spacing: -.04em; }
+    .ad-summary small { color: var(--muted); font-size: 11px; }
+    .ad-icon { display: grid; place-items: center; width: 39px; height: 39px; border-radius: 13px; color: #195dcc; background: #eaf2ff; font-size: 23px; }
+    .ad-card { margin-top: 10px; padding: 15px; }
+    .ad-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .ad-card p { margin: 9px 0 12px; color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .ad-card-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding-top: 11px; border-top: 1px solid var(--line); font-size: 12px; }
+    .ad-card-foot span { color: var(--muted); }
+    .ad-card-foot strong { font-size: 13px; }
+    .ad-open { width: 100%; padding: 0; border: 0; background: transparent; text-align: left; }
+    .budget-track { height: 8px; margin-top: 15px; overflow: hidden; border-radius: 8px; background: #e9eef6; }
+    .budget-track span { display: block; height: 100%; border-radius: 8px; background: var(--blue); }
+    .detail-list { margin-top: 12px; overflow: hidden; }
+    .detail-row { display: flex; justify-content: space-between; gap: 12px; padding: 13px 15px; border-bottom: 1px solid var(--line); font-size: 12px; }
+    .detail-row:last-child { border-bottom: 0; }
+    .detail-row span { color: var(--muted); }
+    .detail-row strong { max-width: 62%; text-align: right; overflow-wrap: anywhere; }
+    .stats-hero { padding: 19px; }
+    .stats-hero span { color: var(--muted); font-size: 12px; }
+    .stats-hero strong { display: block; margin-top: 8px; font-size: 32px; letter-spacing: -.055em; }
+    .stats-hero small { display: block; margin-top: 3px; color: var(--good); font-size: 11px; font-weight: 650; }
+    .chart { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; height: 104px; margin-top: 18px; padding: 0 4px; border-bottom: 1px solid var(--line); }
+    .bar { flex: 1; max-width: 35px; border-radius: 7px 7px 0 0; background: #d8e7ff; }
+    .bar:last-child { background: var(--blue); }
+    .chart-labels { display: flex; justify-content: space-between; gap: 12px; padding: 8px 2px 0; color: var(--muted); font-size: 10px; }
+    .chart-labels span { flex: 1; max-width: 35px; text-align: center; }
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .stat-tile { display: grid; gap: 8px; padding: 16px; }
+    .stat-tile span { color: var(--muted); font-size: 11px; }
+    .stat-tile strong { font-size: 19px; letter-spacing: -.035em; }
+    .field { display: grid; gap: 7px; margin: 15px 0; }
+    .field label { font-size: 12px; font-weight: 650; }
+    .field input, .field textarea { width: 100%; min-height: 45px; padding: 12px 13px; border: 1px solid #dfe5ee; border-radius: 12px; color: #1d2633; background: white; font-size: 13px; }
+    .field textarea { min-height: 100px; resize: vertical; }
+    .form-card { padding: 17px; }
+    .form-card p { margin: 5px 0 18px; color: var(--muted); font-size: 12px; line-height: 1.4; }
+    .form-note { margin: 13px 2px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .toast { position: absolute; z-index: 4; right: 17px; bottom: 80px; left: 17px; padding: 12px 15px; border-radius: 12px; color: #fff; background: #223246; box-shadow: 0 8px 25px #15253b3a; font-size: 12px; text-align: center; }
+    .nav { display: grid; grid-template-columns: repeat(3, 1fr); flex: 0 0 auto; gap: 3px; padding: 8px 9px calc(8px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: white; }
+    .nav button { display: grid; justify-items: center; gap: 4px; min-height: 49px; padding: 6px 3px; border: 0; border-radius: 11px; color: #8a97a8; background: transparent; font-size: 10px; }
+    .nav button.active { color: var(--blue-dark); background: #eaf2ff; font-weight: 700; }
+    .nav svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .phone-wrap { position: relative; }
+    @media (max-width: 760px) {
+      .stage { display: block; min-height: 100dvh; padding: 0; background: var(--page); }
+      .stage-info { display: none; }
+      .phone-wrap { height: 100dvh; }
+      .phone { width: 100%; height: 100dvh; min-height: 0; border: 0; border-radius: 0; box-shadow: none; }
+      .screen { padding-bottom: 36px; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <aside class="stage-info">
+      <div class="stage-icon" aria-hidden="true">К</div>
+      <h1>Мини-приложение «Контекст»</h1>
+      <p>Так сервис выглядит внутри MAX. Посмотрите предложение для канала, откройте объявления и статистику. Все данные здесь примерные.</p>
+      <div class="hint"><span class="hint-mark">↗</span><span>Нажимайте на карточки и кнопки прямо в макете</span></div>
+      <button class="stage-reset" data-action="reset">Сбросить демонстрацию</button>
+    </aside>
+    <div class="phone-wrap">
+      <div class="phone" id="phone">
+        <header class="max-bar"><div class="max-mark" aria-hidden="true">М</div><div class="max-title"><strong>Контекст</strong><span>Мини-приложение в MAX</span></div><span class="bar-end" aria-hidden="true">···</span></header>
+        <div class="demo-strip"><span>Демонстрация интерфейса</span><span>Пример данных</span></div>
+        <main class="screen" id="screen"></main>
+        <nav class="nav" id="nav" aria-label="Разделы"></nav>
+      </div>
+    </div>
+  </div>
+  <script>
+    const initial = () => ({
+      tab: 'channels', page: 'home', channelPaused: false, educationAllowed: true,
+      proposal: { title: 'Лекторий «Маяк»', subject: 'Короткие лекции о городе и архитектуре', price: 420, reason: 'Подходит к теме вашего поста об архитектуре и городских прогулках.', status: 'pending', alternative: false },
+      ads: [
+        { id: 1, title: 'Курс по городскому дизайну', body: 'Практический курс для тех, кто хочет делать город удобнее.', budget: 12000, left: 7850, category: 'Образование', status: 'active' },
+        { id: 2, title: 'Гид по современному искусству', body: 'Путеводитель по выставкам и музеям на выходные.', budget: 8000, left: 6200, category: 'Культура', status: 'active' },
+      ], selectedAd: 1,
+    });
+    let state = initial();
+    let toastTimer;
+    const screen = document.getElementById('screen');
+    const nav = document.getElementById('nav');
+    const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+    const rub = (number) => `${new Intl.NumberFormat('ru-RU').format(number)} ₽`;
+    const icon = (kind) => ({
+      channels: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="15" rx="3"/><path d="M7 9h10M7 13h7"/></svg>',
+      ads: '<svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/><circle cx="18" cy="18" r="2"/></svg>',
+      stats: '<svg viewBox="0 0 24 24"><path d="M4 20V5M4 20h16M7 16l4-5 3 2 5-7"/></svg>',
+    }[kind]);
+    function navHtml() {
+      return ['channels', 'ads', 'stats'].map((tab) => `<button data-action="tab" data-tab="${tab}" class="${state.tab === tab ? 'active' : ''}" ${state.tab === tab ? 'aria-current="page"' : ''}>${icon(tab)}<span>${{ channels: 'Каналы', ads: 'Объявления', stats: 'Статистика' }[tab]}</span></button>`).join('');
+    }
+    function home() {
+      const p = state.proposal;
+      return `<div class="head-row"><div><h2>Ваши каналы</h2><p class="intro">Предложения и настройки размещения</p></div></div>
+        ${p.status === 'pending' ? `<section class="spotlight"><div class="spotlight-top"><span>Новое предложение</span><span>До 19:30</span></div><h3>${escapeHtml(p.title)}</h3><p>Для канала «Город в деталях»</p><div class="spotlight-bottom"><div class="spotlight-sum"><strong>${rub(p.price)}</strong><span>ожидаемый доход</span></div><button class="white-button" data-action="channel">Посмотреть</button></div></section>` : `<section class="spotlight"><div class="spotlight-top"><span>Работа каналов</span></div><h3>Вы управляете размещениями</h3><p>Новые предложения появятся здесь после подбора.</p></section>`}
+        <div class="metrics"><div class="card metric"><span>Каналов</span><strong>2</strong></div><div class="card metric"><span>Заработано за 30 дней</span><strong>3 480 ₽</strong></div></div>
+        <div class="section-title"><strong>Подключённые каналы</strong><span>2 канала</span></div>
+        <section class="card list"><button class="list-row" data-action="channel"><span class="avatar">ГД</span><span class="row-copy"><strong>Город в деталях</strong><span>${state.channelPaused ? 'На паузе' : 'Работает'} · 12 480 подписчиков</span></span><span class="chevron">›</span></button><button class="list-row" data-action="other-channel"><span class="avatar green">КД</span><span class="row-copy"><strong>Коротко о дизайне</strong><span>Работает · 8 320 подписчиков</span></span><span class="chevron">›</span></button></section>`;
+    }
+    function channel() {
+      const p = state.proposal;
+      return `<button class="back" data-action="back">‹ Назад</button><div class="detail-header"><div><h2>Город в деталях</h2><p class="detail-subtitle">12 480 подписчиков</p></div><span class="badge ${state.channelPaused ? 'muted' : ''}">${state.channelPaused ? 'На паузе' : 'Работает'}</span></div>
+        ${p.status === 'pending' ? `<section class="card proposal-card"><div class="proposal-top"><div class="brand-icon">М</div><div><span>Предложение рекламы</span><strong>Для вашего канала</strong></div></div><h3>${escapeHtml(p.title)}</h3><p>${escapeHtml(p.subject)}</p><div class="earning"><span>Доход канала</span><strong>${rub(p.price)}</strong></div><div class="proposal-meta"><span>Оплата за размещение</span><span>До 19:30</span></div></section><section class="card context"><strong>Почему это предложение подходит</strong><p>${escapeHtml(p.reason)}</p></section><section class="card context"><strong>Ваш исходный пост</strong><p>В этом маршруте собраны тихие улицы, необычные фасады и места, которые легко пропустить во время обычной прогулки.</p></section><div class="action-grid"><button class="button" data-action="approve">Одобрить</button><button class="button secondary" data-action="alternative" ${p.alternative ? 'disabled' : ''}>Другой вариант</button></div><button class="button quiet full" data-action="reject">Отклонить предложение</button>` : `<section class="card context"><strong>${p.status === 'approved' ? 'Предложение одобрено' : p.status === 'rejected' ? 'Предложение отклонено' : 'Предложений сейчас нет'}</strong><p>${p.status === 'approved' ? 'Размещение запланировано. Когда реклама появится в канале, статус обновится.' : 'Новые предложения появятся здесь после публикации подходящего поста.'}</p></section>`}
+        <div class="section-title"><strong>Настройки канала</strong></div><section class="card setting-card"><div class="setting-head"><h3>Категории рекламы</h3><p>Выбирайте, что можно предлагать каналу</p></div><button class="switch-row" role="switch" aria-checked="${state.educationAllowed}" data-action="education"><span>Образование</span><span class="switch ${state.educationAllowed ? 'on' : ''}"></span></button><button class="switch-row" role="switch" aria-checked="true" data-action="culture"><span>Культура и события</span><span class="switch on"></span></button><button class="switch-row" role="switch" aria-checked="false" data-action="regulated"><span>Регулируемые категории</span><span class="switch"></span></button></section><button class="button ${state.channelPaused ? 'secondary' : 'quiet'} full" data-action="pause-channel">${state.channelPaused ? 'Возобновить канал' : 'Приостановить канал'}</button>`;
+    }
+    function otherChannel() {
+      return `<button class="back" data-action="back">‹ Назад</button><div class="detail-header"><div><h2>Коротко о дизайне</h2><p class="detail-subtitle">8 320 подписчиков</p></div><span class="badge">Работает</span></div><section class="card context"><strong>Предложений сейчас нет</strong><p>Бот пришлёт предложение, когда для нового поста найдётся подходящая реклама.</p></section><div class="section-title"><strong>Настройки канала</strong></div><section class="card setting-card"><div class="setting-head"><h3>Категории рекламы</h3><p>Образование и культура разрешены</p></div><button class="switch-row" role="switch" aria-checked="true" data-action="other-setting"><span>Образование</span><span class="switch on"></span></button><button class="switch-row" role="switch" aria-checked="true" data-action="other-setting"><span>Культура и события</span><span class="switch on"></span></button></section>`;
+    }
+    function ads() {
+      const total = state.ads.reduce((sum, ad) => sum + ad.left, 0);
+      return `<div class="head-row"><div><h2>Объявления</h2><p class="intro">Рекламодатель «Атлас»</p></div></div><section class="card ad-summary"><div><span>Остаток бюджета</span><strong>${rub(total)}</strong><small> по всем объявлениям</small></div><div class="ad-icon" aria-hidden="true">↗</div></section><div class="section-title"><strong>Ваши объявления</strong><span>${state.ads.length} шт.</span></div>${state.ads.map((ad) => `<section class="card ad-card"><button class="ad-open" data-action="ad" data-id="${ad.id}"><div class="ad-card-head"><h3>${escapeHtml(ad.title)}</h3><span class="badge ${ad.status === 'paused' ? 'muted' : ''}">${ad.status === 'active' ? 'В подборе' : 'На паузе'}</span></div><p>${escapeHtml(ad.body)}</p><div class="ad-card-foot"><span>Остаток бюджета</span><strong>${rub(ad.left)} ›</strong></div></button></section>`).join('')}<button class="button full" data-action="create">Создать объявление</button><p class="form-note">Пополнение в макете демонстрационное, реальная оплата не проводится.</p>`;
+    }
+    function adDetail() {
+      const ad = state.ads.find((item) => item.id === state.selectedAd);
+      if (!ad) return ads();
+      return `<button class="back" data-action="back">‹ Назад</button><div class="detail-header"><div><h2>${escapeHtml(ad.title)}</h2><p class="detail-subtitle">${escapeHtml(ad.category)} · оплата за размещение</p></div></div><span class="badge ${ad.status === 'paused' ? 'muted' : ''}">${ad.status === 'active' ? 'В подборе' : 'На паузе'}</span><section class="card detail-list"><div class="detail-row"><span>Текст</span><strong>${escapeHtml(ad.body)}</strong></div><div class="detail-row"><span>Категория</span><strong>${escapeHtml(ad.category)}</strong></div><div class="detail-row"><span>Цена размещения</span><strong>600 ₽</strong></div></section><div class="section-title"><strong>Бюджет</strong></div><section class="card stats-hero"><span>Осталось</span><strong>${rub(ad.left)}</strong><div class="budget-track"><span style="width:${Math.min(100, ad.left / ad.budget * 100)}%"></span></div><p class="intro">Из ${rub(ad.budget)} общего бюджета</p></section><div class="action-grid"><button class="button secondary" data-action="topup">Пополнить демо</button><button class="button ${ad.status === 'active' ? 'quiet' : 'secondary'}" data-action="pause-ad">${ad.status === 'active' ? 'Приостановить' : 'Возобновить'}</button></div><p class="form-note">Действия в макете меняют только пример данных на этом экране.</p>`;
+    }
+    function stats() {
+      return `<div class="head-row"><div><h2>Статистика</h2><p class="intro">Доход каналов и расходы отдельно</p></div></div><section class="card stats-hero"><span>Доход каналов за 30 дней</span><strong>3 480 ₽</strong><small>12 размещений за период</small><div class="chart"><div class="bar" style="height:42%"></div><div class="bar" style="height:68%"></div><div class="bar" style="height:53%"></div><div class="bar" style="height:85%"></div><div class="bar" style="height:63%"></div><div class="bar" style="height:77%"></div><div class="bar" style="height:100%"></div></div><div class="chart-labels"><span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span></div></section><div class="section-title"><strong>Каналы</strong><span>За 30 дней</span></div><section class="stats-grid"><div class="card stat-tile"><span>Размещений</span><strong>12</strong></div><div class="card stat-tile"><span>Просмотров</span><strong>86 420</strong></div><div class="card stat-tile"><span>Кликов</span><strong>1 284</strong></div><div class="card stat-tile"><span>Заработано</span><strong>3 480 ₽</strong></div></section><div class="section-title"><strong>Рекламодатель «Атлас»</strong></div><section class="card detail-list"><div class="detail-row"><span>Размещений</span><strong>8</strong></div><div class="detail-row"><span>Просмотров</span><strong>51 260</strong></div><div class="detail-row"><span>Потрачено</span><strong>5 950 ₽</strong></div></section><p class="form-note">Цифры приведены для показа интерфейса и не связаны с вашим ботом.</p>`;
+    }
+    function create() {
+      return `<button class="back" data-action="back">‹ Назад</button><div class="head-row"><div><h2>Новое объявление</h2><p class="intro">Посмотрите, как выглядит создание рекламы</p></div></div><form class="card form-card" id="create-form"><h3>Основное</h3><p>Заполните пример объявления. Оно останется только в этом макете.</p><div class="field"><label for="ad-title">Заголовок</label><input id="ad-title" name="title" placeholder="Например, экскурсия по городу" maxlength="100" required></div><div class="field"><label for="ad-body">Текст</label><textarea id="ad-body" name="body" placeholder="Коротко расскажите о предложении" maxlength="1000" required></textarea></div><div class="field"><label for="ad-budget">Бюджет, ₽</label><input id="ad-budget" name="budget" type="number" min="600" step="1" placeholder="5000" required></div><button class="button full" type="submit">Добавить в макет</button></form><p class="form-note">В рабочем приложении создание объявления включает и другие поля. Этот экран показывает только внешний вид сценария.</p>`;
+    }
+    function render() {
+      nav.innerHTML = navHtml();
+      screen.innerHTML = ({ home, channel, otherChannel, ads, adDetail, stats, create })[state.page]();
+      screen.scrollTop = 0;
+    }
+    function notify(message) {
+      document.querySelector('.toast')?.remove();
+      const item = document.createElement('div');
+      item.className = 'toast'; item.setAttribute('role', 'status'); item.textContent = message;
+      document.querySelector('.phone-wrap').append(item);
+      window.clearTimeout(toastTimer);
+      toastTimer = window.setTimeout(() => item.remove(), 2600);
+    }
+    document.addEventListener('click', (event) => {
+      const control = event.target.closest('[data-action]');
+      if (!control) return;
+      const action = control.dataset.action;
+      if (action === 'tab') { state.tab = control.dataset.tab; state.page = { channels: 'home', ads: 'ads', stats: 'stats' }[state.tab]; }
+      else if (action === 'back') state.page = state.tab === 'channels' ? 'home' : 'ads';
+      else if (action === 'channel') { state.tab = 'channels'; state.page = 'channel'; }
+      else if (action === 'other-channel') { state.tab = 'channels'; state.page = 'otherChannel'; }
+      else if (action === 'ad') { state.tab = 'ads'; state.selectedAd = Number(control.dataset.id); state.page = 'adDetail'; }
+      else if (action === 'create') { state.tab = 'ads'; state.page = 'create'; }
+      else if (action === 'reset') { state = initial(); notify('Демонстрация сброшена'); }
+      else if (action === 'approve') { state.proposal.status = 'approved'; notify('Предложение одобрено в макете'); }
+      else if (action === 'reject') { state.proposal.status = 'rejected'; notify('Предложение отклонено в макете'); }
+      else if (action === 'alternative') { state.proposal = { title: 'Арт-маршрут по Москве', subject: 'Авторские прогулки по местам современного искусства', price: 380, reason: 'Связан с темой городских прогулок в вашем посте.', status: 'pending', alternative: true }; notify('Показан другой вариант'); }
+      else if (action === 'education') { state.educationAllowed = !state.educationAllowed; notify(state.educationAllowed ? 'Образование разрешено' : 'Образование отключено'); }
+      else if (action === 'pause-channel') { state.channelPaused = !state.channelPaused; notify(state.channelPaused ? 'Канал на паузе' : 'Канал возобновлён'); }
+      else if (action === 'pause-ad') { const ad = state.ads.find((item) => item.id === state.selectedAd); ad.status = ad.status === 'active' ? 'paused' : 'active'; notify(ad.status === 'active' ? 'Объявление возобновлено' : 'Объявление на паузе'); }
+      else if (action === 'topup') { const ad = state.ads.find((item) => item.id === state.selectedAd); ad.left += 500; ad.budget += 500; notify('Добавлено 500 ₽ в макете'); }
+      else if (action === 'culture' || action === 'regulated' || action === 'other-setting') { notify('Это настройка для просмотра дизайна'); return; }
+      else return;
+      render();
+    });
+    document.addEventListener('submit', (event) => {
+      if (event.target.id !== 'create-form') return;
+      event.preventDefault();
+      const fields = new FormData(event.target);
+      const budget = Number(fields.get('budget'));
+      if (!Number.isFinite(budget) || budget < 600) return;
+      const id = Math.max(...state.ads.map((ad) => ad.id), 0) + 1;
+      state.ads.unshift({ id, title: String(fields.get('title')).trim(), body: String(fields.get('body')).trim(), budget, left: budget, category: 'Образование', status: 'active' });
+      state.tab = 'ads'; state.page = 'ads'; render(); notify('Объявление добавлено только в макет');
+    });
+    render();
+  </script>
+</body>
+</html>
