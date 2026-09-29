@@ -1,4 +1,15 @@
 import type { Ad, AdsData, Bootstrap, ChannelDetail, StatsData } from './types';
+import {
+  hashIdentityScope,
+  IdempotencyLedger,
+  idempotencyStorageKey,
+  isUncertainWrite,
+  parsePendingWrite,
+  pendingOperationStorageKey,
+} from './domain/idempotency';
+import type { PendingWrite } from './domain/idempotency';
+
+const REQUEST_TIMEOUT_MS = 15_000;
 
 export class ApiError extends Error {
   status: number;
@@ -20,16 +31,22 @@ export function initData(): string {
   return fragment.get('WebAppData') ?? '';
 }
 
-async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const signedData = initData();
+async function api<T>(path: string, init: RequestInit = {}, signedDataOverride?: string): Promise<T> {
+  const signedData = signedDataOverride ?? initData();
   if (!signedData) {
     throw new ApiError('Откройте приложение из MAX, чтобы войти.', 401);
   }
 
-  let response: Response;
+  const controller = new AbortController();
+  const externalSignal = init.signal;
+  const abortFromCaller = () => controller.abort();
+  if (externalSignal?.aborted) controller.abort();
+  else externalSignal?.addEventListener('abort', abortFromCaller, { once: true });
+  const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-    response = await fetch(path, {
+    const response = await fetch(path, {
       ...init,
+      signal: controller.signal,
       credentials: 'same-origin',
       headers: {
         'Content-Type': 'application/json',
@@ -37,24 +54,33 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
         ...init.headers,
       },
     });
-  } catch {
-    throw new ApiError('Не удалось связаться с сервисом.', 0);
-  }
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const detail = data?.detail;
-    if (response.status === 401) {
-      throw new ApiError('Данные входа устарели. Закройте приложение и откройте его снова.', 401);
+    const data = await response.json().catch((cause) => {
+      if (controller.signal.aborted) throw cause;
+      return {};
+    });
+    if (!response.ok) {
+      const detail = data?.detail;
+      if (response.status === 401) {
+        throw new ApiError('Данные входа устарели. Проверьте подключение MAX и повторите запрос.', 401);
+      }
+      throw new ApiError(
+        detail?.message ?? 'Не получилось выполнить действие. Обновите данные и попробуйте снова.',
+        response.status,
+        detail?.field,
+        detail?.code,
+      );
     }
+    return data as T;
+  } catch (cause) {
+    if (cause instanceof ApiError) throw cause;
     throw new ApiError(
-      detail?.message ?? 'Не получилось выполнить действие. Обновите данные и попробуйте снова.',
-      response.status,
-      detail?.field,
-      detail?.code,
+      controller.signal.aborted ? 'Запрос не завершился вовремя. Проверьте подключение и попробуйте ещё раз.' : 'Не удалось связаться с сервисом.',
+      0,
     );
+  } finally {
+    window.clearTimeout(timeout);
+    externalSignal?.removeEventListener('abort', abortFromCaller);
   }
-  return data as T;
 }
 
 function newRequestId(): string {
@@ -62,39 +88,47 @@ function newRequestId(): string {
   return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
 }
 
-async function requestFingerprint(path: string, body: unknown): Promise<string> {
-  const raw = `${path}\n${JSON.stringify(body)}`;
-  if (globalThis.crypto?.subtle) {
-    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw));
-    return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+const pendingLedger = new IdempotencyLedger({
+  getItem(key) {
+    try { return sessionStorage.getItem(key); } catch { return null; }
+  },
+  setItem(key, value) {
+    try { sessionStorage.setItem(key, value); } catch { /* memory still retains the key */ }
+  },
+  removeItem(key) {
+    try { sessionStorage.removeItem(key); } catch { /* ignore */ }
+  },
+});
+
+const pendingOperations = new Map<string, PendingWrite>();
+
+function savePendingWrite(write: PendingWrite): void {
+  pendingOperations.set(write.scopeHash, write);
+  try { sessionStorage.setItem(pendingOperationStorageKey(write.scopeHash), JSON.stringify({ version: 1, ...write })); } catch { /* the in-memory recovery remains available */ }
+}
+
+function clearPendingWrite(scopeHash: string): void {
+  pendingOperations.delete(scopeHash);
+  try { sessionStorage.removeItem(pendingOperationStorageKey(scopeHash)); } catch { /* ignore unavailable storage */ }
+}
+
+export async function getPendingWrite(): Promise<PendingWrite | null> {
+  const signedData = initData();
+  if (!signedData) return null;
+  const scopeHash = await hashIdentityScope(signedData);
+  const memory = pendingOperations.get(scopeHash);
+  if (memory) return memory;
+  let raw: string | null = null;
+  try { raw = sessionStorage.getItem(pendingOperationStorageKey(scopeHash)); } catch { return null; }
+  const write = parsePendingWrite(raw, scopeHash);
+  if (!write) return null;
+  const storageKey = await idempotencyStorageKey(signedData, write.path, write.body);
+  if (!pendingLedger.get(storageKey)) {
+    clearPendingWrite(scopeHash);
+    return null;
   }
-  let hash = 2166136261;
-  for (let i = 0; i < raw.length; i += 1) hash = Math.imul(hash ^ raw.charCodeAt(i), 16777619);
-  return (hash >>> 0).toString(16);
-}
-
-const pendingRequestIds = new Map<string, string>();
-
-function readPendingRequestId(key: string): string | null {
-  try {
-    const value = localStorage.getItem(key) ?? sessionStorage.getItem(key);
-    if (value) return value;
-  } catch {
-    // MAX WebViews can disable persistent storage; an in-memory retry still works.
-  }
-  return pendingRequestIds.get(key) ?? null;
-}
-
-function savePendingRequestId(key: string, value: string): void {
-  pendingRequestIds.set(key, value);
-  try { localStorage.setItem(key, value); return; } catch { /* use session storage */ }
-  try { sessionStorage.setItem(key, value); } catch { /* keep it in memory */ }
-}
-
-function clearPendingRequestId(key: string): void {
-  pendingRequestIds.delete(key);
-  try { localStorage.removeItem(key); } catch { /* ignore unavailable storage */ }
-  try { sessionStorage.removeItem(key); } catch { /* ignore unavailable storage */ }
+  pendingOperations.set(scopeHash, write);
+  return write;
 }
 
 export async function mutate<T>(
@@ -102,32 +136,40 @@ export async function mutate<T>(
   body: unknown,
   method: 'POST' | 'PUT' = 'POST',
 ): Promise<T> {
-  const fingerprint = await requestFingerprint(path, body);
-  const storageKey = `ctxads.pending.${fingerprint}`;
-  const priorKey = readPendingRequestId(storageKey);
-  const requestId = priorKey ?? newRequestId();
-  if (!priorKey) savePendingRequestId(storageKey, requestId);
+  const signedData = initData();
+  if (!signedData) throw new ApiError('Откройте приложение из MAX, чтобы войти.', 401);
+  const scopeHash = await hashIdentityScope(signedData);
+  const storageKey = await idempotencyStorageKey(signedData, path, body);
+  const requestId = pendingLedger.getOrCreate(storageKey, newRequestId);
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    pendingLedger.clear(storageKey);
+    throw new ApiError('Не удалось безопасно сохранить действие. Обновите экран и повторите попытку.', 400);
+  }
+  savePendingWrite({ scopeHash, path, method, body: body as Record<string, unknown> });
 
   try {
     const result = await api<T>(path, {
       method,
       headers: { 'Idempotency-Key': requestId },
       body: JSON.stringify(body),
-    });
-    clearPendingRequestId(storageKey);
+    }, signedData);
+    pendingLedger.clear(storageKey);
+    clearPendingWrite(scopeHash);
     return result;
   } catch (error) {
     if (error instanceof ApiError) {
-      const uncertain = error.status === 0 || error.status >= 500 || error.code === 'mutation_in_progress';
-      if (!uncertain) clearPendingRequestId(storageKey);
+      if (!isUncertainWrite(error)) {
+        pendingLedger.clear(storageKey);
+        clearPendingWrite(scopeHash);
+      }
     }
     throw error;
   }
 }
 
-export const getBootstrap = () => api<Bootstrap>('/api/miniapp/bootstrap');
-export const getChannel = (id: number) => api<ChannelDetail>(`/api/miniapp/channels/${id}`);
-export const getAds = () => api<AdsData>('/api/miniapp/ads');
-export const getStats = () => api<StatsData>('/api/miniapp/stats');
+export const getBootstrap = (signal?: AbortSignal) => api<Bootstrap>('/api/miniapp/bootstrap', { signal });
+export const getChannel = (id: number, signal?: AbortSignal) => api<ChannelDetail>(`/api/miniapp/channels/${id}`, { signal });
+export const getAds = (signal?: AbortSignal) => api<AdsData>('/api/miniapp/ads', { signal });
+export const getStats = (signal?: AbortSignal) => api<StatsData>('/api/miniapp/stats', { signal });
 
 export type MutationResponse = ChannelDetail | Ad | { accepted: boolean; name?: string };

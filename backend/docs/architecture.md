@@ -154,7 +154,7 @@ ctxads/
 ├── requirements.txt            # зависимости для pip (-e ./backend)
 ├── .env.example
 └── backend/
-    ├── CLAUDE.md
+    ├── PROJECT_GUIDE.md
     ├── docs/                   # architecture, SETUP, demo, frontend-ux, miniapp-*
     ├── pyproject.toml          # + uv.lock
     ├── Caddyfile               # HTTPS с Let's Encrypt для webhook

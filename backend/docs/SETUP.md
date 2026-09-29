@@ -1,4 +1,4 @@
-# Запуск ctxads — инструкция для человека и для ИИ-агента
+# Запуск ctxads
 
 > **Структура репозитория:** Python-код — в `backend/`, мини-приложение — в `frontend/`, `.env` — в корне.
 > Команды `uv`, `alembic`, `pytest`, `ruff` и `python -m ctxads.*` выполняйте **из папки `backend/`**;
@@ -8,7 +8,7 @@
 присылает админу в личку предложение с кнопками, после одобрения публикует рекламу в канал
 с маркировкой и считает клики и просмотры.
 
-- Что и зачем строим, правила кода: [CLAUDE.md](../CLAUDE.md)
+- Что и зачем строим, правила кода: [PROJECT_GUIDE.md](../PROJECT_GUIDE.md)
 - Архитектура: [docs/architecture.md](architecture.md)
 - Сценарий показа: [docs/demo.md](demo.md)
 
@@ -193,12 +193,12 @@ docker compose exec app uv run --no-sync python -m ctxads.seed
 
 ---
 
-## 8. Для ИИ-агента
+## 8. Правила разработки
 
-**Прежде чем менять код, прочитай [CLAUDE.md](../CLAUDE.md) и [docs/architecture.md](architecture.md).**
+**Прежде чем менять код, прочитай [PROJECT_GUIDE.md](../PROJECT_GUIDE.md) и [docs/architecture.md](architecture.md).**
 Там стек, архитектурные правила, проверенные факты о MAX Bot API и порядок работы.
 
-Жёсткие правила (из CLAUDE.md, коротко):
+Основные правила (из PROJECT_GUIDE.md, коротко):
 
 - Тесты и CI **никогда** не ходят в NIM и MAX: только `FakeLLM`, `FakeEmbedder`, respx-мок MAX.
   У NIM ~1000 бесплатных кредитов, их тратят только живые посты.

@@ -3,172 +3,216 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#f5f7fa">
-  <title>Контекст — макет мини-приложения MAX</title>
+  <meta name="theme-color" content="#f4f6f9">
+  <title>Контекст — демонстрация мини-приложения</title>
   <style>
     :root {
+      color-scheme: light;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      color: #1d2633;
-      background: #e9edf4;
+      color: #202a36;
+      background: #e9edf3;
       font-synthesis: none;
       -webkit-font-smoothing: antialiased;
-      --blue: #337af2;
-      --blue-dark: #195dcc;
-      --muted: #697789;
-      --line: #e6ebf2;
+      --blue: #2878e8;
+      --blue-dark: #145bbd;
+      --muted: #6c7888;
+      --line: #e5eaf0;
       --surface: #fff;
-      --page: #f5f7fa;
-      --good: #168a61;
+      --page: #f4f6f9;
+      --good: #17835e;
+      --warn: #9a6812;
+      --danger: #b34b54;
     }
     * { box-sizing: border-box; }
-    body { margin: 0; min-width: 320px; }
+    body { min-width: 320px; margin: 0; }
     button, input, textarea { font: inherit; }
     button { cursor: pointer; }
-    button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid #7eaeff; outline-offset: 2px; }
-    .stage { min-height: 100vh; display: grid; grid-template-columns: minmax(270px, 400px) minmax(320px, 430px); justify-content: center; align-items: center; gap: clamp(32px, 6vw, 112px); padding: 32px; background: radial-gradient(circle at 75% 10%, #f7f9ff 0, transparent 34%), #e9edf4; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid #82b3ff; outline-offset: 2px; }
+    button:disabled { cursor: default; opacity: .52; }
+    .stage { min-height: 100vh; display: grid; grid-template-columns: minmax(260px, 370px) minmax(340px, 430px); justify-content: center; align-items: center; gap: clamp(34px, 7vw, 110px); padding: 32px; background: radial-gradient(circle at 74% 12%, #f7f9fd 0, transparent 34%), #e9edf3; }
     .stage-info { align-self: center; }
-    .stage-icon { display: grid; place-items: center; width: 58px; height: 58px; border-radius: 19px; color: white; background: var(--blue); font-size: 24px; font-weight: 800; box-shadow: 0 12px 22px #3979e62e; }
-    .stage-info h1 { max-width: 350px; margin: 28px 0 16px; font-size: clamp(35px, 4.3vw, 54px); line-height: 1.04; letter-spacing: -.06em; }
-    .stage-info p { max-width: 330px; margin: 0 0 28px; color: #617086; font-size: 16px; line-height: 1.55; }
-    .stage-info .hint { display: flex; align-items: center; gap: 11px; color: #687588; font-size: 13px; line-height: 1.4; }
-    .hint-mark { display: grid; place-items: center; flex: 0 0 auto; width: 31px; height: 31px; border: 1px solid #cfdae9; border-radius: 50%; color: #397bf0; background: #fff; font-weight: 700; }
-    .stage-reset { margin-top: 28px; padding: 0; border: 0; background: transparent; color: var(--blue-dark); font-weight: 650; }
-    .phone { display: flex; flex-direction: column; width: min(430px, 100%); height: min(860px, calc(100vh - 64px)); min-height: 590px; margin: auto; overflow: hidden; border: 8px solid #202a39; border-radius: 39px; background: var(--page); box-shadow: 0 28px 70px #2c436433, 0 2px 9px #202a3925; }
-    .max-bar { display: flex; flex: 0 0 auto; align-items: center; gap: 11px; min-height: 69px; padding: 11px 18px; background: var(--surface); border-bottom: 1px solid var(--line); }
-    .max-mark { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 12px; color: white; background: var(--blue); font-size: 17px; font-weight: 800; letter-spacing: -.06em; }
-    .max-title { display: grid; gap: 1px; min-width: 0; }
-    .max-title strong { font-size: 14px; line-height: 1.2; }
-    .max-title span { color: var(--muted); font-size: 11px; }
-    .bar-end { margin-left: auto; color: var(--muted); font-size: 21px; letter-spacing: 2px; transform: translateY(-5px); }
-    .demo-strip { display: flex; justify-content: space-between; align-items: center; flex: 0 0 auto; min-height: 35px; padding: 7px 20px; color: #496582; background: #eaf2ff; font-size: 11px; font-weight: 600; }
-    .demo-strip span:last-child { font-weight: 450; }
-    .screen { flex: 1 1 auto; min-height: 0; padding: 21px 17px 32px; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
-    .screen h2 { margin: 0; font-size: 25px; line-height: 1.15; letter-spacing: -.045em; }
-    .screen h3 { margin: 0; font-size: 17px; line-height: 1.27; letter-spacing: -.02em; }
-    .intro { margin: 7px 0 0; color: var(--muted); font-size: 13px; line-height: 1.4; }
-    .head-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 20px; }
-    .heading-action { border: 0; background: transparent; color: var(--blue-dark); font-size: 13px; font-weight: 650; }
-    .section-title { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 23px 2px 11px; }
-    .section-title strong { font-size: 15px; }
-    .section-title span { color: var(--muted); font-size: 12px; }
-    .card { border: 1px solid var(--line); border-radius: 18px; background: var(--surface); box-shadow: 0 2px 9px #263b5810; }
-    .spotlight { position: relative; overflow: hidden; padding: 19px; border-radius: 20px; color: white; background: #327af2; box-shadow: 0 12px 25px #327af230; }
-    .spotlight::before, .spotlight::after { position: absolute; content: ''; border: 1px solid #ffffff2c; border-radius: 50%; pointer-events: none; }
-    .spotlight::before { width: 225px; height: 225px; right: -82px; top: -102px; }
-    .spotlight::after { width: 151px; height: 151px; right: -43px; top: -68px; }
+    .stage-icon { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 17px; color: #fff; background: var(--blue); font-size: 23px; font-weight: 800; box-shadow: 0 10px 22px #2878e82e; }
+    .stage-info h1 { max-width: 345px; margin: 26px 0 14px; font-size: clamp(34px, 4vw, 49px); line-height: 1.04; letter-spacing: -.055em; }
+    .stage-info p { max-width: 340px; margin: 0 0 24px; color: #607084; font-size: 15px; line-height: 1.55; }
+    .stage-info .hint { display: flex; align-items: center; gap: 10px; color: #667589; font-size: 13px; line-height: 1.45; }
+    .hint-mark { display: grid; place-items: center; flex: 0 0 auto; width: 30px; height: 30px; border: 1px solid #d1dbe7; border-radius: 50%; color: var(--blue-dark); background: #fff; font-weight: 700; }
+    .stage-reset { margin-top: 26px; padding: 0; border: 0; color: var(--blue-dark); background: transparent; font-size: 13px; font-weight: 650; }
+    .phone-wrap { position: relative; width: min(430px, 100%); margin: auto; }
+    .phone { display: flex; flex-direction: column; width: 100%; height: min(860px, calc(100vh - 64px)); min-height: 590px; overflow: hidden; border: 8px solid #202a37; border-radius: 37px; background: var(--page); box-shadow: 0 26px 68px #2b405f33, 0 2px 9px #202a3925; }
+    .demo-strip { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 10px; min-height: 43px; padding: 7px 13px 7px 16px; border-bottom: 1px solid var(--line); background: #fff; }
+    .sample-label { display: inline-flex; align-items: center; gap: 7px; color: #526578; font-size: 11px; font-weight: 630; }
+    .sample-dot { width: 7px; height: 7px; border-radius: 50%; background: #6f94bb; }
+    .reset-button { min-height: 29px; padding: 5px 8px; border: 0; border-radius: 8px; color: #586d84; background: #f2f5f8; font-size: 11px; font-weight: 630; }
+    .screen { flex: 1 1 auto; min-height: 0; padding: 21px 17px 30px; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+    .screen h1, .screen h2 { margin: 0; font-size: 25px; line-height: 1.16; letter-spacing: -.04em; }
+    .screen h3 { margin: 0; font-size: 16px; line-height: 1.3; letter-spacing: -.018em; }
+    .intro { margin: 7px 0 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .head-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 19px; }
+    .section-title { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 22px 2px 10px; }
+    .section-title strong { font-size: 14px; }
+    .section-title span { color: var(--muted); font-size: 11px; }
+    .card { border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: 0 2px 8px #2539500c; }
+    .spotlight { position: relative; overflow: hidden; padding: 17px; border-radius: 18px; color: #fff; background: #2878e8; box-shadow: 0 10px 24px #2878e828; }
+    .spotlight::after { position: absolute; top: -94px; right: -64px; width: 195px; height: 195px; border: 1px solid #ffffff30; border-radius: 50%; content: ""; pointer-events: none; }
     .spotlight > * { position: relative; z-index: 1; }
-    .spotlight-top { display: flex; justify-content: space-between; gap: 12px; color: #e5efff; font-size: 12px; }
-    .spotlight h3 { max-width: 265px; margin: 25px 0 9px; font-size: 22px; line-height: 1.12; letter-spacing: -.04em; }
-    .spotlight p { margin: 0 0 18px; color: #e8f1ff; font-size: 13px; }
-    .spotlight-bottom { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-    .spotlight-sum { display: grid; gap: 1px; }
-    .spotlight-sum strong { font-size: 24px; letter-spacing: -.04em; }
-    .spotlight-sum span { color: #e0ecff; font-size: 11px; }
-    .white-button { min-height: 40px; padding: 0 14px; border: 0; border-radius: 11px; color: #1d63d1; background: white; font-size: 12px; font-weight: 720; }
-    .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
-    .metric { display: grid; gap: 7px; padding: 15px; }
-    .metric span { color: var(--muted); font-size: 12px; }
-    .metric strong { font-size: 23px; line-height: 1; letter-spacing: -.04em; }
+    .spotlight-top { display: flex; justify-content: space-between; gap: 8px; color: #e6efff; font-size: 11px; }
+    .spotlight h3 { max-width: 265px; margin: 19px 0 7px; font-size: 19px; line-height: 1.17; }
+    .spotlight p { margin: 0 0 15px; color: #e7f0ff; font-size: 12px; line-height: 1.4; }
+    .spotlight-bottom { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .spotlight-sum { display: grid; gap: 2px; }
+    .spotlight-sum strong { font-size: 22px; letter-spacing: -.035em; }
+    .spotlight-sum span { color: #e0ecff; font-size: 10px; }
+    .white-button { min-height: 38px; padding: 0 13px; border: 0; border-radius: 10px; color: #1a60c7; background: white; font-size: 12px; font-weight: 700; }
+    .metrics, .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 11px; }
+    .metric { display: grid; gap: 7px; padding: 13px; }
+    .metric span, .stat-tile span { color: var(--muted); font-size: 11px; }
+    .metric strong { font-size: 20px; line-height: 1; letter-spacing: -.03em; }
     .list { overflow: hidden; }
-    .list-row { display: flex; width: 100%; align-items: center; gap: 12px; min-height: 74px; padding: 14px; border: 0; border-bottom: 1px solid var(--line); background: #fff; text-align: left; }
+    .list-row { display: flex; width: 100%; min-height: 69px; align-items: center; gap: 11px; padding: 12px; border: 0; border-bottom: 1px solid var(--line); background: #fff; text-align: left; }
     .list-row:last-child { border-bottom: 0; }
-    .avatar { display: grid; place-items: center; width: 42px; height: 42px; flex: 0 0 auto; border-radius: 14px; color: #345d99; background: #e7f1ff; font-size: 14px; font-weight: 750; }
-    .avatar.green { color: #24866b; background: #e5f5ef; }
-    .avatar.purple { color: #7b63a8; background: #f0eafa; }
-    .row-copy { display: grid; min-width: 0; gap: 5px; flex: 1 1 auto; }
-    .row-copy strong { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
-    .row-copy span { color: var(--muted); font-size: 11px; line-height: 1.3; }
-    .chevron { color: #a3adbb; font-size: 25px; font-weight: 300; line-height: 1; }
-    .badge { display: inline-flex; align-items: center; gap: 5px; width: fit-content; padding: 5px 9px; border-radius: 30px; color: var(--good); background: #e9f7f1; font-size: 11px; font-weight: 680; }
-    .badge::before { display: block; width: 5px; height: 5px; border-radius: 50%; background: currentColor; content: ''; }
-    .badge.blue { color: #1d66d7; background: #eaf2ff; }
+    .avatar { display: grid; place-items: center; width: 40px; height: 40px; flex: 0 0 auto; border-radius: 13px; color: #345d99; background: #e9f1fb; font-size: 13px; font-weight: 750; }
+    .avatar.green { color: #24836a; background: #e8f5ef; }
+    .row-copy { display: grid; min-width: 0; flex: 1 1 auto; gap: 4px; }
+    .row-copy strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+    .row-copy span { color: var(--muted); font-size: 10px; line-height: 1.35; }
+    .chevron { color: #9ba7b5; font-size: 22px; font-weight: 300; }
+    .badge { display: inline-flex; width: fit-content; align-items: center; gap: 5px; padding: 5px 8px; border-radius: 30px; color: var(--good); background: #eaf6f0; font-size: 10px; font-weight: 680; white-space: nowrap; }
+    .badge::before { width: 5px; height: 5px; border-radius: 50%; background: currentColor; content: ""; }
+    .badge.blue { color: #1e63c5; background: #eaf2ff; }
     .badge.muted { color: #728093; background: #f0f2f5; }
-    .back { display: inline-flex; align-items: center; gap: 3px; min-height: 31px; margin: -5px 0 10px; padding: 0; border: 0; color: var(--blue-dark); background: transparent; font-size: 13px; font-weight: 600; }
-    .detail-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; }
-    .detail-subtitle { margin: 7px 0 0; color: var(--muted); font-size: 12px; }
-    .proposal-card { padding: 17px; }
-    .proposal-top { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
-    .brand-icon { display: grid; place-items: center; width: 41px; height: 41px; flex: 0 0 auto; border-radius: 13px; color: #1e5cab; background: #e6f0ff; font-size: 19px; font-weight: 800; }
-    .proposal-top span { display: block; color: var(--muted); font-size: 11px; }
-    .proposal-top strong { display: block; margin-top: 2px; font-size: 13px; }
-    .proposal-card h3 { margin-bottom: 8px; font-size: 19px; }
-    .proposal-card > p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
-    .earning { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 17px 0 12px; padding: 13px; border-radius: 12px; color: #14795a; background: #e9f7f0; }
-    .earning span { font-size: 12px; }
-    .earning strong { font-size: 21px; letter-spacing: -.03em; }
-    .proposal-meta { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 11px; }
-    .context { margin-top: 13px; padding: 15px; }
-    .context strong { font-size: 12px; }
-    .context p { margin: 8px 0 0; color: #4f5d70; font-size: 12px; line-height: 1.55; }
-    .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 14px; }
-    .button { min-height: 45px; padding: 10px 14px; border: 0; border-radius: 12px; background: var(--blue); color: white; font-size: 13px; font-weight: 680; }
-    .button:active, .white-button:active { transform: scale(.98); }
-    .button.secondary { color: var(--blue-dark); background: #e9f1ff; }
-    .button.quiet { color: #bf4857; background: #fff0f1; }
+    .badge.warning { color: var(--warn); background: #fff4dc; }
+    .back { display: inline-flex; min-height: 31px; align-items: center; gap: 4px; margin: -5px 0 10px; padding: 0; border: 0; color: var(--blue-dark); background: transparent; font-size: 12px; font-weight: 620; }
+    .detail-header { display: flex; align-items: center; justify-content: space-between; gap: 11px; margin-bottom: 16px; }
+    .detail-subtitle { margin: 6px 0 0; color: var(--muted); font-size: 11px; line-height: 1.4; }
+    .proposal-card { margin-top: 13px; padding: 15px; }
+    .proposal-top { display: flex; align-items: center; gap: 9px; margin-bottom: 13px; }
+    .brand-icon { display: grid; place-items: center; width: 38px; height: 38px; flex: 0 0 auto; border-radius: 12px; color: #1e5cab; background: #eaf2ff; font-size: 17px; font-weight: 800; }
+    .proposal-top span { display: block; color: var(--muted); font-size: 10px; }
+    .proposal-top strong { display: block; margin-top: 2px; font-size: 12px; }
+    .proposal-card h3 { margin: 0 0 7px; font-size: 17px; }
+    .proposal-card p { color: #586577; font-size: 11px; line-height: 1.48; }
+    .offer-income { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 13px 0 10px; padding: 11px; border-radius: 11px; color: #176e54; background: #eaf6f0; }
+    .offer-income span, .offer-meta { font-size: 10px; }
+    .offer-income strong { font-size: 19px; letter-spacing: -.03em; }
+    .offer-meta { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); }
+    .source-context { margin-top: 12px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 11px; background: #fbfcfd; }
+    .source-context summary { color: #53657b; cursor: pointer; font-size: 11px; font-weight: 620; }
+    .source-context p { margin: 8px 0 0; }
+    .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+    .button { min-height: 43px; padding: 9px 12px; border: 0; border-radius: 11px; color: white; background: var(--blue); font-size: 12px; font-weight: 680; }
+    .button:active, .white-button:active { transform: scale(.985); }
+    .button.secondary { color: var(--blue-dark); background: #eaf2ff; }
+    .button.quiet { color: var(--danger); background: #fff0f1; }
+    .button.outline { border: 1px solid #d9e0e9; color: #536274; background: #fff; }
     .button.full { width: 100%; margin-top: 9px; }
-    .button:disabled { opacity: .5; cursor: default; }
+    .button.small { min-height: 34px; padding: 7px 10px; font-size: 11px; }
+    .category-block-action { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+    .category-block-action p { margin: 0 0 8px; color: var(--muted); font-size: 10px; line-height: 1.4; }
     .setting-card { margin-top: 11px; overflow: hidden; }
-    .setting-head { padding: 16px 15px 12px; }
-    .setting-head h3 { font-size: 14px; }
-    .setting-head p { margin: 4px 0 0; color: var(--muted); font-size: 11px; }
-    .switch-row { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 10px; min-height: 47px; padding: 9px 15px; border: 0; border-top: 1px solid var(--line); background: white; text-align: left; font-size: 12px; }
-    .switch { display: block; position: relative; width: 37px; height: 22px; flex: 0 0 auto; border-radius: 20px; background: #bac3ce; }
-    .switch::after { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px #0002; content: ''; transition: transform .18s ease; }
+    .setting-head { padding: 14px 14px 10px; }
+    .setting-head h3 { font-size: 13px; }
+    .setting-head p { margin: 4px 0 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
+    .switch-row { display: flex; width: 100%; min-height: 43px; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 14px; border: 0; border-top: 1px solid var(--line); background: #fff; text-align: left; font-size: 11px; }
+    .switch { position: relative; display: block; width: 36px; height: 21px; flex: 0 0 auto; border-radius: 20px; background: #bac3ce; }
+    .switch::after { position: absolute; top: 2.5px; left: 2.5px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px #0002; content: ""; transition: transform .18s ease; }
     .switch.on { background: var(--blue); }
     .switch.on::after { transform: translateX(15px); }
-    .ad-summary { display: flex; justify-content: space-between; align-items: flex-end; gap: 15px; padding: 17px; }
-    .ad-summary span { display: block; margin-bottom: 6px; color: var(--muted); font-size: 11px; }
-    .ad-summary strong { font-size: 25px; letter-spacing: -.04em; }
-    .ad-summary small { color: var(--muted); font-size: 11px; }
-    .ad-icon { display: grid; place-items: center; width: 39px; height: 39px; border-radius: 13px; color: #195dcc; background: #eaf2ff; font-size: 23px; }
-    .ad-card { margin-top: 10px; padding: 15px; }
-    .ad-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-    .ad-card p { margin: 9px 0 12px; color: var(--muted); font-size: 12px; line-height: 1.45; }
-    .ad-card-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding-top: 11px; border-top: 1px solid var(--line); font-size: 12px; }
+    .ad-summary { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; padding: 15px; }
+    .ad-summary span { display: block; margin-bottom: 5px; color: var(--muted); font-size: 10px; }
+    .ad-summary strong { font-size: 23px; letter-spacing: -.04em; }
+    .ad-summary small { color: var(--muted); font-size: 10px; }
+    .ad-card { margin-top: 9px; padding: 14px; }
+    .ad-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+    .ad-card h3 { font-size: 14px; }
+    .ad-card p { margin: 8px 0 11px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .ad-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 10px; }
     .ad-card-foot span { color: var(--muted); }
-    .ad-card-foot strong { font-size: 13px; }
-    .ad-open { width: 100%; padding: 0; border: 0; background: transparent; text-align: left; }
-    .budget-track { height: 8px; margin-top: 15px; overflow: hidden; border-radius: 8px; background: #e9eef6; }
-    .budget-track span { display: block; height: 100%; border-radius: 8px; background: var(--blue); }
-    .detail-list { margin-top: 12px; overflow: hidden; }
-    .detail-row { display: flex; justify-content: space-between; gap: 12px; padding: 13px 15px; border-bottom: 1px solid var(--line); font-size: 12px; }
+    .ad-card-foot strong { font-size: 12px; }
+    .ad-open { display: block; width: 100%; padding: 0; border: 0; background: transparent; text-align: left; }
+    .budget-track { height: 7px; margin-top: 12px; overflow: hidden; border-radius: 7px; background: #e9eef5; }
+    .budget-track span { display: block; height: 100%; border-radius: inherit; background: var(--blue); }
+    .detail-list { margin-top: 11px; overflow: hidden; }
+    .detail-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 11px; padding: 11px 13px; border-bottom: 1px solid var(--line); font-size: 11px; }
     .detail-row:last-child { border-bottom: 0; }
-    .detail-row span { color: var(--muted); }
-    .detail-row strong { max-width: 62%; text-align: right; overflow-wrap: anywhere; }
-    .stats-hero { padding: 19px; }
-    .stats-hero span { color: var(--muted); font-size: 12px; }
-    .stats-hero strong { display: block; margin-top: 8px; font-size: 32px; letter-spacing: -.055em; }
-    .stats-hero small { display: block; margin-top: 3px; color: var(--good); font-size: 11px; font-weight: 650; }
-    .chart { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; height: 104px; margin-top: 18px; padding: 0 4px; border-bottom: 1px solid var(--line); }
-    .bar { flex: 1; max-width: 35px; border-radius: 7px 7px 0 0; background: #d8e7ff; }
-    .bar:last-child { background: var(--blue); }
-    .chart-labels { display: flex; justify-content: space-between; gap: 12px; padding: 8px 2px 0; color: var(--muted); font-size: 10px; }
-    .chart-labels span { flex: 1; max-width: 35px; text-align: center; }
-    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .stat-tile { display: grid; gap: 8px; padding: 16px; }
-    .stat-tile span { color: var(--muted); font-size: 11px; }
-    .stat-tile strong { font-size: 19px; letter-spacing: -.035em; }
-    .field { display: grid; gap: 7px; margin: 15px 0; }
-    .field label { font-size: 12px; font-weight: 650; }
-    .field input, .field textarea { width: 100%; min-height: 45px; padding: 12px 13px; border: 1px solid #dfe5ee; border-radius: 12px; color: #1d2633; background: white; font-size: 13px; }
-    .field textarea { min-height: 100px; resize: vertical; }
-    .form-card { padding: 17px; }
-    .form-card p { margin: 5px 0 18px; color: var(--muted); font-size: 12px; line-height: 1.4; }
-    .form-note { margin: 13px 2px; color: var(--muted); font-size: 11px; line-height: 1.45; }
-    .toast { position: absolute; z-index: 4; right: 17px; bottom: 80px; left: 17px; padding: 12px 15px; border-radius: 12px; color: #fff; background: #223246; box-shadow: 0 8px 25px #15253b3a; font-size: 12px; text-align: center; }
-    .nav { display: grid; grid-template-columns: repeat(3, 1fr); flex: 0 0 auto; gap: 3px; padding: 8px 9px calc(8px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: white; }
-    .nav button { display: grid; justify-items: center; gap: 4px; min-height: 49px; padding: 6px 3px; border: 0; border-radius: 11px; color: #8a97a8; background: transparent; font-size: 10px; }
+    .detail-row > span { color: var(--muted); }
+    .detail-row strong { max-width: 65%; text-align: right; overflow-wrap: anywhere; }
+    .editable-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 13px 0; border-bottom: 1px solid var(--line); }
+    .editable-row:first-child { padding-top: 0; }
+    .editable-row:last-child { border-bottom: 0; }
+    .editable-row h3, .editable-row p, .editable-row strong { display: block; margin: 5px 0 0; overflow-wrap: anywhere; font-size: 12px; line-height: 1.4; }
+    .editable-row p { color: #465467; }
+    .field-label { display: block; margin: 14px 0 7px; font-size: 11px; font-weight: 650; }
+    .field input, .field textarea { display: block; width: 100%; min-height: 44px; padding: 11px 12px; border: 1px solid #dce3ec; border-radius: 11px; color: #202a36; background: white; font-size: 13px; }
+    .field textarea { min-height: 112px; resize: vertical; line-height: 1.45; }
+    .field-help, .form-note { margin: 8px 1px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+    .field-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 5px; color: var(--muted); font-size: 10px; }
+    .field-error { margin: 7px 0 0; color: #b4414d; font-size: 11px; line-height: 1.4; }
+    [aria-invalid="true"] { border-color: #cf5661 !important; }
+    .choice-list { display: grid; gap: 7px; margin-top: 12px; }
+    .choice-row { display: flex; width: 100%; min-height: 45px; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border: 1px solid #e1e7ee; border-radius: 11px; color: #293648; background: #fff; text-align: left; font-size: 12px; }
+    .choice-row.selected { border-color: #80afea; color: #174f9d; background: #f0f6ff; }
+    .choice-row small { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; }
+    .radio-mark { width: 17px; height: 17px; flex: 0 0 auto; border: 1px solid #b8c3d0; border-radius: 50%; }
+    .choice-row.selected .radio-mark { border: 5px solid var(--blue); }
+    .wizard-progress { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 5px 0 19px; color: var(--muted); font-size: 11px; }
+    .progress-track { height: 5px; flex: 1; overflow: hidden; border-radius: 6px; background: #e3e9f0; }
+    .progress-track span { display: block; height: 100%; border-radius: inherit; background: var(--blue); transition: width .18s ease; }
+    .wizard-title { margin: 0 0 7px !important; font-size: 21px !important; }
+    .wizard-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 17px; }
+    .cancel-flow { display: block; margin: 14px auto 0; padding: 5px 7px; border: 0; color: #727f8f; background: transparent; font-size: 11px; }
+    .preview-post { margin-top: 15px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: white; }
+    .preview-brand { margin-bottom: 12px; color: var(--muted); font-size: 11px; font-weight: 650; }
+    .preview-post h2 { font-size: 19px; }
+    .preview-body { color: #465467; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+    .preview-link { display: block; color: var(--blue-dark); font-size: 11px; overflow-wrap: anywhere; }
+    .preview-marking { color: var(--muted); font-size: 10px; line-height: 1.45; }
+    .preview-details { margin-top: 10px; overflow: hidden; border: 1px solid var(--line); border-radius: 13px; background: #fff; }
+    .demo-note { margin: 11px 0; padding: 10px 11px; border-radius: 11px; color: #586a7d; background: #edf3f9; font-size: 10px; line-height: 1.45; }
+    .stats-hero { padding: 16px; }
+    .stats-hero > span { color: var(--muted); font-size: 11px; }
+    .stats-hero > strong { display: block; margin-top: 7px; font-size: 29px; letter-spacing: -.045em; }
+    .stat-tile { display: grid; gap: 8px; padding: 13px; }
+    .stat-tile strong { font-size: 17px; letter-spacing: -.03em; }
+    .stats-section { margin-top: 18px; }
+    .stats-section h3 { margin: 0 2px 8px; font-size: 14px; }
+    .per-ad-row { display: grid; gap: 5px; padding: 11px 0; border-bottom: 1px solid var(--line); font-size: 11px; }
+    .per-ad-row:last-child { border-bottom: 0; }
+    .per-ad-row span { color: var(--muted); line-height: 1.4; }
+    .empty-state, .error-state, .loading-state { padding: 17px; }
+    .empty-state h3, .error-state h3 { margin-bottom: 7px; }
+    .empty-state p, .error-state p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .error-state { border-color: #f0d8db; background: #fffafb; }
+    .error-state h3 { color: #a43e48; }
+    .skeleton { border-radius: 8px; background: linear-gradient(90deg, #e9edf2 25%, #f5f7f9 50%, #e9edf2 75%); background-size: 200% 100%; animation: shimmer 1.4s ease-in-out infinite; }
+    .skeleton-title { width: 54%; height: 20px; margin: 2px 0 15px; }
+    .skeleton-line { width: 80%; height: 11px; margin: 0 0 20px; }
+    .skeleton-row { height: 62px; margin-top: 9px; }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+    .scenario-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+    .scenario-button { min-height: 51px; padding: 9px; border: 1px solid #e1e6ee; border-radius: 12px; color: #324155; background: #fff; text-align: left; font-size: 11px; font-weight: 620; }
+    .scenario-button span { display: block; margin-top: 3px; color: var(--muted); font-size: 9px; font-weight: 450; }
+    .toast { position: absolute; z-index: 5; right: 15px; bottom: 78px; left: 15px; padding: 11px 13px; border-radius: 11px; color: #fff; background: #27374b; box-shadow: 0 7px 22px #15253b38; font-size: 11px; text-align: center; }
+    .nav { display: grid; flex: 0 0 auto; grid-template-columns: repeat(3, 1fr); gap: 3px; padding: 7px 8px calc(7px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: #fff; }
+    .nav button { display: grid; min-height: 46px; justify-items: center; align-content: center; gap: 3px; padding: 4px 3px; border: 0; border-radius: 10px; color: #8793a2; background: transparent; font-size: 10px; }
     .nav button.active { color: var(--blue-dark); background: #eaf2ff; font-weight: 700; }
-    .nav svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-    .phone-wrap { position: relative; }
+    .nav svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .page-note { margin: 13px 1px 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
     @media (max-width: 760px) {
       .stage { display: block; min-height: 100dvh; padding: 0; background: var(--page); }
       .stage-info { display: none; }
-      .phone-wrap { height: 100dvh; }
+      .phone-wrap { width: 100%; height: 100dvh; }
       .phone { width: 100%; height: 100dvh; min-height: 0; border: 0; border-radius: 0; box-shadow: none; }
-      .screen { padding-bottom: 36px; }
+      .screen { padding-bottom: 35px; }
     }
-    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }
+    @media (max-width: 360px) {
+      .screen { padding-right: 13px; padding-left: 13px; }
+      .demo-strip { padding-right: 9px; padding-left: 12px; }
+      .sample-label { font-size: 10px; }
+      .reset-button { font-size: 10px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    }
   </style>
 </head>
 <body>
@@ -176,120 +220,1181 @@
     <aside class="stage-info">
       <div class="stage-icon" aria-hidden="true">К</div>
       <h1>Мини-приложение «Контекст»</h1>
-      <p>Так сервис выглядит внутри MAX. Посмотрите предложение для канала, откройте объявления и статистику. Все данные здесь примерные.</p>
-      <div class="hint"><span class="hint-mark">↗</span><span>Нажимайте на карточки и кнопки прямо в макете</span></div>
-      <button class="stage-reset" data-action="reset">Сбросить демонстрацию</button>
+      <p>Интерактивный пример сценариев сервиса. Создайте объявление, настройте канал и посмотрите, как работает предложение. Все изменения остаются только в этой вкладке.</p>
+      <div class="hint"><span class="hint-mark" aria-hidden="true">↗</span><span>Нажимайте на карточки и кнопки внутри макета. Черновик и положение прокрутки сохраняются в этой вкладке.</span></div>
+      <button class="stage-reset" type="button" data-action="reset">Сбросить демонстрацию</button>
     </aside>
     <div class="phone-wrap">
       <div class="phone" id="phone">
-        <header class="max-bar"><div class="max-mark" aria-hidden="true">М</div><div class="max-title"><strong>Контекст</strong><span>Мини-приложение в MAX</span></div><span class="bar-end" aria-hidden="true">···</span></header>
-        <div class="demo-strip"><span>Демонстрация интерфейса</span><span>Пример данных</span></div>
-        <main class="screen" id="screen"></main>
+        <div class="demo-strip">
+          <span class="sample-label"><span class="sample-dot" aria-hidden="true"></span>Пример данных · только в этой вкладке</span>
+          <button class="reset-button" type="button" data-action="reset" aria-label="Сбросить демонстрацию">Сбросить</button>
+        </div>
+        <main class="screen" id="screen" tabindex="-1"></main>
         <nav class="nav" id="nav" aria-label="Разделы"></nav>
       </div>
     </div>
   </div>
   <script>
-    const initial = () => ({
-      tab: 'channels', page: 'home', channelPaused: false, educationAllowed: true,
-      proposal: { title: 'Лекторий «Маяк»', subject: 'Короткие лекции о городе и архитектуре', price: 420, reason: 'Подходит к теме вашего поста об архитектуре и городских прогулках.', status: 'pending', alternative: false },
-      ads: [
-        { id: 1, title: 'Курс по городскому дизайну', body: 'Практический курс для тех, кто хочет делать город удобнее.', budget: 12000, left: 7850, category: 'Образование', status: 'active' },
-        { id: 2, title: 'Гид по современному искусству', body: 'Путеводитель по выставкам и музеям на выходные.', budget: 8000, left: 6200, category: 'Культура', status: 'active' },
-      ], selectedAd: 1,
-    });
-    let state = initial();
-    let toastTimer;
-    const screen = document.getElementById('screen');
-    const nav = document.getElementById('nav');
-    const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
-    const rub = (number) => `${new Intl.NumberFormat('ru-RU').format(number)} ₽`;
-    const icon = (kind) => ({
-      channels: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="15" rx="3"/><path d="M7 9h10M7 13h7"/></svg>',
-      ads: '<svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/><circle cx="18" cy="18" r="2"/></svg>',
-      stats: '<svg viewBox="0 0 24 24"><path d="M4 20V5M4 20h16M7 16l4-5 3 2 5-7"/></svg>',
-    }[kind]);
-    function navHtml() {
-      return ['channels', 'ads', 'stats'].map((tab) => `<button data-action="tab" data-tab="${tab}" class="${state.tab === tab ? 'active' : ''}" ${state.tab === tab ? 'aria-current="page"' : ''}>${icon(tab)}<span>${{ channels: 'Каналы', ads: 'Объявления', stats: 'Статистика' }[tab]}</span></button>`).join('');
-    }
-    function home() {
-      const p = state.proposal;
-      return `<div class="head-row"><div><h2>Ваши каналы</h2><p class="intro">Предложения и настройки размещения</p></div></div>
-        ${p.status === 'pending' ? `<section class="spotlight"><div class="spotlight-top"><span>Новое предложение</span><span>До 19:30</span></div><h3>${escapeHtml(p.title)}</h3><p>Для канала «Город в деталях»</p><div class="spotlight-bottom"><div class="spotlight-sum"><strong>${rub(p.price)}</strong><span>ожидаемый доход</span></div><button class="white-button" data-action="channel">Посмотреть</button></div></section>` : `<section class="spotlight"><div class="spotlight-top"><span>Работа каналов</span></div><h3>Вы управляете размещениями</h3><p>Новые предложения появятся здесь после подбора.</p></section>`}
-        <div class="metrics"><div class="card metric"><span>Каналов</span><strong>2</strong></div><div class="card metric"><span>Заработано за 30 дней</span><strong>3 480 ₽</strong></div></div>
-        <div class="section-title"><strong>Подключённые каналы</strong><span>2 канала</span></div>
-        <section class="card list"><button class="list-row" data-action="channel"><span class="avatar">ГД</span><span class="row-copy"><strong>Город в деталях</strong><span>${state.channelPaused ? 'На паузе' : 'Работает'} · 12 480 подписчиков</span></span><span class="chevron">›</span></button><button class="list-row" data-action="other-channel"><span class="avatar green">КД</span><span class="row-copy"><strong>Коротко о дизайне</strong><span>Работает · 8 320 подписчиков</span></span><span class="chevron">›</span></button></section>`;
-    }
-    function channel() {
-      const p = state.proposal;
-      return `<button class="back" data-action="back">‹ Назад</button><div class="detail-header"><div><h2>Город в деталях</h2><p class="detail-subtitle">12 480 подписчиков</p></div><span class="badge ${state.channelPaused ? 'muted' : ''}">${state.channelPaused ? 'На паузе' : 'Работает'}</span></div>
-        ${p.status === 'pending' ? `<section class="card proposal-card"><div class="proposal-top"><div class="brand-icon">М</div><div><span>Предложение рекламы</span><strong>Для вашего канала</strong></div></div><h3>${escapeHtml(p.title)}</h3><p>${escapeHtml(p.subject)}</p><div class="earning"><span>Доход канала</span><strong>${rub(p.price)}</strong></div><div class="proposal-meta"><span>Оплата за размещение</span><span>До 19:30</span></div></section><section class="card context"><strong>Почему это предложение подходит</strong><p>${escapeHtml(p.reason)}</p></section><section class="card context"><strong>Ваш исходный пост</strong><p>В этом маршруте собраны тихие улицы, необычные фасады и места, которые легко пропустить во время обычной прогулки.</p></section><div class="action-grid"><button class="button" data-action="approve">Одобрить</button><button class="button secondary" data-action="alternative" ${p.alternative ? 'disabled' : ''}>Другой вариант</button></div><button class="button quiet full" data-action="reject">Отклонить предложение</button>` : `<section class="card context"><strong>${p.status === 'approved' ? 'Предложение одобрено' : p.status === 'rejected' ? 'Предложение отклонено' : 'Предложений сейчас нет'}</strong><p>${p.status === 'approved' ? 'Размещение запланировано. Когда реклама появится в канале, статус обновится.' : 'Новые предложения появятся здесь после публикации подходящего поста.'}</p></section>`}
-        <div class="section-title"><strong>Настройки канала</strong></div><section class="card setting-card"><div class="setting-head"><h3>Категории рекламы</h3><p>Выбирайте, что можно предлагать каналу</p></div><button class="switch-row" role="switch" aria-checked="${state.educationAllowed}" data-action="education"><span>Образование</span><span class="switch ${state.educationAllowed ? 'on' : ''}"></span></button><button class="switch-row" role="switch" aria-checked="true" data-action="culture"><span>Культура и события</span><span class="switch on"></span></button><button class="switch-row" role="switch" aria-checked="false" data-action="regulated"><span>Регулируемые категории</span><span class="switch"></span></button></section><button class="button ${state.channelPaused ? 'secondary' : 'quiet'} full" data-action="pause-channel">${state.channelPaused ? 'Возобновить канал' : 'Приостановить канал'}</button>`;
-    }
-    function otherChannel() {
-      return `<button class="back" data-action="back">‹ Назад</button><div class="detail-header"><div><h2>Коротко о дизайне</h2><p class="detail-subtitle">8 320 подписчиков</p></div><span class="badge">Работает</span></div><section class="card context"><strong>Предложений сейчас нет</strong><p>Бот пришлёт предложение, когда для нового поста найдётся подходящая реклама.</p></section><div class="section-title"><strong>Настройки канала</strong></div><section class="card setting-card"><div class="setting-head"><h3>Категории рекламы</h3><p>Образование и культура разрешены</p></div><button class="switch-row" role="switch" aria-checked="true" data-action="other-setting"><span>Образование</span><span class="switch on"></span></button><button class="switch-row" role="switch" aria-checked="true" data-action="other-setting"><span>Культура и события</span><span class="switch on"></span></button></section>`;
-    }
-    function ads() {
-      const total = state.ads.reduce((sum, ad) => sum + ad.left, 0);
-      return `<div class="head-row"><div><h2>Объявления</h2><p class="intro">Рекламодатель «Атлас»</p></div></div><section class="card ad-summary"><div><span>Остаток бюджета</span><strong>${rub(total)}</strong><small> по всем объявлениям</small></div><div class="ad-icon" aria-hidden="true">↗</div></section><div class="section-title"><strong>Ваши объявления</strong><span>${state.ads.length} шт.</span></div>${state.ads.map((ad) => `<section class="card ad-card"><button class="ad-open" data-action="ad" data-id="${ad.id}"><div class="ad-card-head"><h3>${escapeHtml(ad.title)}</h3><span class="badge ${ad.status === 'paused' ? 'muted' : ''}">${ad.status === 'active' ? 'В подборе' : 'На паузе'}</span></div><p>${escapeHtml(ad.body)}</p><div class="ad-card-foot"><span>Остаток бюджета</span><strong>${rub(ad.left)} ›</strong></div></button></section>`).join('')}<button class="button full" data-action="create">Создать объявление</button><p class="form-note">Пополнение в макете демонстрационное, реальная оплата не проводится.</p>`;
-    }
-    function adDetail() {
-      const ad = state.ads.find((item) => item.id === state.selectedAd);
-      if (!ad) return ads();
-      return `<button class="back" data-action="back">‹ Назад</button><div class="detail-header"><div><h2>${escapeHtml(ad.title)}</h2><p class="detail-subtitle">${escapeHtml(ad.category)} · оплата за размещение</p></div></div><span class="badge ${ad.status === 'paused' ? 'muted' : ''}">${ad.status === 'active' ? 'В подборе' : 'На паузе'}</span><section class="card detail-list"><div class="detail-row"><span>Текст</span><strong>${escapeHtml(ad.body)}</strong></div><div class="detail-row"><span>Категория</span><strong>${escapeHtml(ad.category)}</strong></div><div class="detail-row"><span>Цена размещения</span><strong>600 ₽</strong></div></section><div class="section-title"><strong>Бюджет</strong></div><section class="card stats-hero"><span>Осталось</span><strong>${rub(ad.left)}</strong><div class="budget-track"><span style="width:${Math.min(100, ad.left / ad.budget * 100)}%"></span></div><p class="intro">Из ${rub(ad.budget)} общего бюджета</p></section><div class="action-grid"><button class="button secondary" data-action="topup">Пополнить демо</button><button class="button ${ad.status === 'active' ? 'quiet' : 'secondary'}" data-action="pause-ad">${ad.status === 'active' ? 'Приостановить' : 'Возобновить'}</button></div><p class="form-note">Действия в макете меняют только пример данных на этом экране.</p>`;
-    }
-    function stats() {
-      return `<div class="head-row"><div><h2>Статистика</h2><p class="intro">Доход каналов и расходы отдельно</p></div></div><section class="card stats-hero"><span>Доход каналов за 30 дней</span><strong>3 480 ₽</strong><small>12 размещений за период</small><div class="chart"><div class="bar" style="height:42%"></div><div class="bar" style="height:68%"></div><div class="bar" style="height:53%"></div><div class="bar" style="height:85%"></div><div class="bar" style="height:63%"></div><div class="bar" style="height:77%"></div><div class="bar" style="height:100%"></div></div><div class="chart-labels"><span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span></div></section><div class="section-title"><strong>Каналы</strong><span>За 30 дней</span></div><section class="stats-grid"><div class="card stat-tile"><span>Размещений</span><strong>12</strong></div><div class="card stat-tile"><span>Просмотров</span><strong>86 420</strong></div><div class="card stat-tile"><span>Кликов</span><strong>1 284</strong></div><div class="card stat-tile"><span>Заработано</span><strong>3 480 ₽</strong></div></section><div class="section-title"><strong>Рекламодатель «Атлас»</strong></div><section class="card detail-list"><div class="detail-row"><span>Размещений</span><strong>8</strong></div><div class="detail-row"><span>Просмотров</span><strong>51 260</strong></div><div class="detail-row"><span>Потрачено</span><strong>5 950 ₽</strong></div></section><p class="form-note">Цифры приведены для показа интерфейса и не связаны с вашим ботом.</p>`;
-    }
-    function create() {
-      return `<button class="back" data-action="back">‹ Назад</button><div class="head-row"><div><h2>Новое объявление</h2><p class="intro">Посмотрите, как выглядит создание рекламы</p></div></div><form class="card form-card" id="create-form"><h3>Основное</h3><p>Заполните пример объявления. Оно останется только в этом макете.</p><div class="field"><label for="ad-title">Заголовок</label><input id="ad-title" name="title" placeholder="Например, экскурсия по городу" maxlength="100" required></div><div class="field"><label for="ad-body">Текст</label><textarea id="ad-body" name="body" placeholder="Коротко расскажите о предложении" maxlength="1000" required></textarea></div><div class="field"><label for="ad-budget">Бюджет, ₽</label><input id="ad-budget" name="budget" type="number" min="600" step="1" placeholder="5000" required></div><button class="button full" type="submit">Добавить в макет</button></form><p class="form-note">В рабочем приложении создание объявления включает и другие поля. Этот экран показывает только внешний вид сценария.</p>`;
-    }
-    function render() {
-      nav.innerHTML = navHtml();
-      screen.innerHTML = ({ home, channel, otherChannel, ads, adDetail, stats, create })[state.page]();
-      screen.scrollTop = 0;
-    }
-    function notify(message) {
-      document.querySelector('.toast')?.remove();
-      const item = document.createElement('div');
-      item.className = 'toast'; item.setAttribute('role', 'status'); item.textContent = message;
-      document.querySelector('.phone-wrap').append(item);
-      window.clearTimeout(toastTimer);
-      toastTimer = window.setTimeout(() => item.remove(), 2600);
-    }
-    document.addEventListener('click', (event) => {
-      const control = event.target.closest('[data-action]');
-      if (!control) return;
-      const action = control.dataset.action;
-      if (action === 'tab') { state.tab = control.dataset.tab; state.page = { channels: 'home', ads: 'ads', stats: 'stats' }[state.tab]; }
-      else if (action === 'back') state.page = state.tab === 'channels' ? 'home' : 'ads';
-      else if (action === 'channel') { state.tab = 'channels'; state.page = 'channel'; }
-      else if (action === 'other-channel') { state.tab = 'channels'; state.page = 'otherChannel'; }
-      else if (action === 'ad') { state.tab = 'ads'; state.selectedAd = Number(control.dataset.id); state.page = 'adDetail'; }
-      else if (action === 'create') { state.tab = 'ads'; state.page = 'create'; }
-      else if (action === 'reset') { state = initial(); notify('Демонстрация сброшена'); }
-      else if (action === 'approve') { state.proposal.status = 'approved'; notify('Предложение одобрено в макете'); }
-      else if (action === 'reject') { state.proposal.status = 'rejected'; notify('Предложение отклонено в макете'); }
-      else if (action === 'alternative') { state.proposal = { title: 'Арт-маршрут по Москве', subject: 'Авторские прогулки по местам современного искусства', price: 380, reason: 'Связан с темой городских прогулок в вашем посте.', status: 'pending', alternative: true }; notify('Показан другой вариант'); }
-      else if (action === 'education') { state.educationAllowed = !state.educationAllowed; notify(state.educationAllowed ? 'Образование разрешено' : 'Образование отключено'); }
-      else if (action === 'pause-channel') { state.channelPaused = !state.channelPaused; notify(state.channelPaused ? 'Канал на паузе' : 'Канал возобновлён'); }
-      else if (action === 'pause-ad') { const ad = state.ads.find((item) => item.id === state.selectedAd); ad.status = ad.status === 'active' ? 'paused' : 'active'; notify(ad.status === 'active' ? 'Объявление возобновлено' : 'Объявление на паузе'); }
-      else if (action === 'topup') { const ad = state.ads.find((item) => item.id === state.selectedAd); ad.left += 500; ad.budget += 500; notify('Добавлено 500 ₽ в макете'); }
-      else if (action === 'culture' || action === 'regulated' || action === 'other-setting') { notify('Это настройка для просмотра дизайна'); return; }
-      else return;
+    (function () {
+      "use strict";
+      var STORAGE_KEY = "ctxads.demo.workflow.v2";
+      var categories = [
+        { code: "health", label: "Здоровье и ЗОЖ", regulated: false },
+        { code: "medicine", label: "Медицина", regulated: true },
+        { code: "sport", label: "Спорт", regulated: false },
+        { code: "food", label: "Еда", regulated: false },
+        { code: "tech", label: "Технологии", regulated: false },
+        { code: "education", label: "Образование", regulated: false },
+        { code: "finance", label: "Финансы", regulated: true },
+        { code: "travel", label: "Путешествия", regulated: false },
+        { code: "beauty", label: "Красота", regulated: false },
+        { code: "kids", label: "Дети и семья", regulated: false },
+        { code: "auto", label: "Авто", regulated: false },
+        { code: "home", label: "Дом и ремонт", regulated: false },
+        { code: "entertainment", label: "Развлечения", regulated: false },
+        { code: "business", label: "Бизнес", regulated: false },
+        { code: "betting", label: "Ставки", regulated: true },
+        { code: "alcohol", label: "Алкоголь", regulated: true }
+      ];
+      var pricingModels = [
+        { code: "cpm", label: "CPM", unit: "за 1000 показов" },
+        { code: "cpc", label: "CPC", unit: "за клик" },
+        { code: "cpa", label: "CPA", unit: "за целевое действие" }
+      ];
+      var alternatives = [
+        {
+          title: "Лекторий «Маяк»",
+          advertiser: "Маяк",
+          reason: "Подходит к теме вашего поста об архитектуре и городских прогулках.",
+          category: "education",
+          model: "cpm",
+          price: 420,
+          income: 246,
+          post: "На выходных прошлись по старым кварталам и заметили, как по-разному меняется городская среда."
+        },
+        {
+          title: "Арт-маршрут по Москве",
+          advertiser: "Городские маршруты",
+          reason: "Связан с темой городских прогулок и авторских маршрутов.",
+          category: "travel",
+          model: "cpc",
+          price: 36,
+          income: 184,
+          post: "На выходных прошлись по старым кварталам и заметили, как по-разному меняется городская среда."
+        },
+        {
+          title: "Курс по городской фотографии",
+          advertiser: "Школа кадра",
+          reason: "Дополняет разговор о городской архитектуре и визуальных деталях.",
+          category: "education",
+          model: "cpa",
+          price: 690,
+          income: 202,
+          post: "На выходных прошлись по старым кварталам и заметили, как по-разному меняется городская среда."
+        },
+        {
+          title: "Книга о современной архитектуре",
+          advertiser: "Лист",
+          reason: "Связана с темой поста о городских пространствах.",
+          category: "entertainment",
+          model: "cpm",
+          price: 310,
+          income: 181,
+          post: "На выходных прошлись по старым кварталам и заметили, как по-разному меняется городская среда."
+        }
+      ];
+      var screen = document.getElementById("screen");
+      var nav = document.getElementById("nav");
+      var phone = document.getElementById("phone");
+      var toastTimer = 0;
+      var persistTimer = 0;
+      var expiryTimer = 0;
+      var renderedScreenKey = "";
+      var state = loadState();
+
+      function initialState() {
+        var allowed = {};
+        categories.forEach(function (item) { allowed[item.code] = !item.regulated; });
+        return {
+          page: "channels",
+          tab: "channels",
+          selectedChannel: 1,
+          selectedAd: 1,
+          channels: [
+            { id: 1, title: "Город в деталях", subscribers: 8320, status: "active", allowed: Object.assign({}, allowed), proposal: { index: 0, status: "pending", used: 0, expiresAt: Date.now() + 120 * 60 * 1000 } },
+            { id: 2, title: "Коротко о дизайне", subscribers: 5210, status: "paused", allowed: Object.assign({}, allowed), proposal: null }
+          ],
+          ads: [
+            { id: 1, title: "Курс по городскому дизайну", body: "Практический курс для тех, кто хочет делать город удобнее.", url: "https://atlas.example/course", category: "education", pricing_model: "cpm", price: 240, budget_total: 12000, budget_left: 7850, status: "active", placements: 8, views: 51260, clicks: 1284, spent: 5950 },
+            { id: 2, title: "Гид по современному искусству", body: "Путеводитель по выставкам и музеям на выходные.", url: "https://atlas.example/guide", category: "entertainment", pricing_model: "cpc", price: 42, budget_total: 8000, budget_left: 6200, status: "paused", placements: 3, views: 12800, clicks: 304, spent: 1260 },
+            { id: 3, title: "Мастерская городской фотографии", body: "Короткий курс о том, как замечать интересные детали улиц.", url: "https://atlas.example/photo", category: "education", pricing_model: "cpa", price: 690, budget_total: 2500, budget_left: 0, status: "active", placements: 2, views: 7480, clicks: 196, spent: 2500 }
+          ],
+          advertiser: "Атлас",
+          draft: { title: "", body: "", url: "", category: "", pricing_model: "", price: "", budget: "" },
+          wizardStep: 1,
+          fieldErrors: {},
+          editField: "",
+          editValue: "",
+          editError: "",
+          topupAmount: "",
+          topupError: "",
+          scenario: "loading",
+          history: [],
+          scrollPositions: {}
+        };
+      }
+
+      function loadState() {
+        var fresh = initialState();
+        try {
+          var saved = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || "null");
+          if (!saved || saved.version !== 2 || !saved.state) return fresh;
+          var raw = saved.state;
+          var validPages = ["channels", "channel", "ads", "ad", "stats", "create", "edit", "topup", "states", "scenario"];
+          var validTabs = ["channels", "ads", "stats"];
+          var validStatuses = ["pending", "approved", "published", "rejected", "expired", "cancelled", "superseded"];
+          var validFields = ["title", "body", "url", "category", "price"];
+          if (!validPages.includes(raw.page) || !validTabs.includes(raw.tab)) return fresh;
+          if (!Array.isArray(raw.channels) || !raw.channels.length || !Array.isArray(raw.ads)) return fresh;
+          if (!raw.channels.every(function (item) {
+            return item && Number.isInteger(item.id) && typeof item.title === "string" &&
+              Number.isFinite(Number(item.subscribers)) && ["active", "paused", "pending_consent", "insufficient_rights", "removed"].includes(item.status) &&
+              item.allowed && typeof item.allowed === "object" &&
+              (item.proposal === null || (item.proposal && Number.isInteger(item.proposal.index) && item.proposal.index >= 0 && item.proposal.index < alternatives.length &&
+                Number.isInteger(item.proposal.used) && item.proposal.used >= 0 && item.proposal.used <= 3 &&
+                validStatuses.includes(item.proposal.status) && Number.isFinite(Number(item.proposal.expiresAt))));
+          })) return fresh;
+          if (!raw.ads.every(function (item) {
+            return item && Number.isInteger(item.id) && typeof item.title === "string" && typeof item.body === "string" &&
+              typeof item.url === "string" && categories.some(function (category) { return category.code === item.category; }) &&
+              pricingModels.some(function (model) { return model.code === item.pricing_model; }) &&
+              ["active", "paused"].includes(item.status) && Number.isFinite(Number(item.price)) &&
+              Number.isFinite(Number(item.budget_total)) && Number.isFinite(Number(item.budget_left));
+          })) return fresh;
+          var result = Object.assign(fresh, raw);
+          result.channels = raw.channels.map(function (item) {
+            var allowed = {};
+            categories.forEach(function (category) {
+              allowed[category.code] = typeof item.allowed[category.code] === "boolean" ? item.allowed[category.code] : !category.regulated;
+            });
+            return Object.assign({}, item, {
+              allowed: allowed,
+              proposal: item.proposal ? Object.assign({}, item.proposal) : null
+            });
+          });
+          result.ads = raw.ads.map(function (item) {
+            return Object.assign({}, item, {
+              price: Number(item.price),
+              budget_total: Number(item.budget_total),
+              budget_left: Number(item.budget_left),
+              placements: Number.isFinite(Number(item.placements)) ? Number(item.placements) : 0,
+              views: Number.isFinite(Number(item.views)) ? Number(item.views) : 0,
+              clicks: Number.isFinite(Number(item.clicks)) ? Number(item.clicks) : 0,
+              spent: Number.isFinite(Number(item.spent)) ? Number(item.spent) : 0
+            });
+          });
+          result.draft = {};
+          ["title", "body", "url", "category", "pricing_model", "price", "budget"].forEach(function (key) {
+            result.draft[key] = raw.draft && typeof raw.draft[key] === "string" ? raw.draft[key] : "";
+          });
+          result.fieldErrors = {};
+          ["title", "body", "url", "category", "pricing_model", "price", "budget", "general"].forEach(function (key) {
+            if (raw.fieldErrors && typeof raw.fieldErrors[key] === "string") result.fieldErrors[key] = raw.fieldErrors[key].slice(0, 300);
+          });
+          result.editField = validFields.includes(raw.editField) ? raw.editField : "";
+          result.editValue = typeof raw.editValue === "string" ? raw.editValue : "";
+          result.editError = typeof raw.editError === "string" ? raw.editError : "";
+          result.topupAmount = typeof raw.topupAmount === "string" ? raw.topupAmount : "";
+          result.topupError = typeof raw.topupError === "string" ? raw.topupError : "";
+          result.wizardStep = raw.wizardStep === "preview" || (Number.isInteger(raw.wizardStep) && raw.wizardStep >= 1 && raw.wizardStep <= 7) ? raw.wizardStep : 1;
+          result.scenario = ["loading", "empty", "error", "active", "paused", "exhausted", "expired", "published"].includes(raw.scenario) ? raw.scenario : "loading";
+          result.advertiser = typeof raw.advertiser === "string" ? raw.advertiser : fresh.advertiser;
+          result.selectedChannel = result.channels.some(function (item) { return item.id === Number(raw.selectedChannel); }) ? Number(raw.selectedChannel) : result.channels[0].id;
+          result.selectedAd = result.ads.some(function (item) { return item.id === Number(raw.selectedAd); }) ? Number(raw.selectedAd) : result.ads[0] ? result.ads[0].id : 0;
+          result.scrollPositions = {};
+          if (raw.scrollPositions && typeof raw.scrollPositions === "object") {
+            Object.keys(raw.scrollPositions).forEach(function (key) {
+              var position = Number(raw.scrollPositions[key]);
+              if (Number.isFinite(position) && position >= 0) result.scrollPositions[key] = position;
+            });
+          }
+          result.history = Array.isArray(raw.history) ? raw.history.filter(function (item) {
+            return item && validPages.includes(item.page) && validTabs.includes(item.tab);
+          }).slice(-20).map(function (item) {
+            return {
+              page: item.page,
+              tab: item.tab,
+              selectedChannel: Number.isInteger(item.selectedChannel) ? item.selectedChannel : result.selectedChannel,
+              selectedAd: Number.isInteger(item.selectedAd) ? item.selectedAd : result.selectedAd,
+              wizardStep: item.wizardStep === "preview" || (Number.isInteger(item.wizardStep) && item.wizardStep >= 1 && item.wizardStep <= 7) ? item.wizardStep : 1,
+              editField: validFields.includes(item.editField) ? item.editField : "",
+              scenario: ["loading", "empty", "error", "active", "paused", "exhausted", "expired", "published"].includes(item.scenario) ? item.scenario : "loading"
+            };
+          }) : [];
+          if (result.page === "edit" && !result.editField) result.page = "ad";
+          return result;
+        } catch (error) {
+          return fresh;
+        }
+      }
+
+      function saveState() {
+        try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 2, state: state })); } catch (error) { /* storage is optional */ }
+      }
+
+      function escapeHtml(value) {
+        return String(value == null ? "" : value).replace(/[&<>"']/g, function (char) {
+          return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[char];
+        });
+      }
+
+      function money(value) {
+        var amount = Number(value);
+        if (!Number.isFinite(amount)) return "—";
+        return new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2, minimumFractionDigits: amount % 1 ? 2 : 0 }).format(amount) + " ₽";
+      }
+
+      function statusInfo(status) {
+        var map = {
+          active: ["В подборе", "good"],
+          paused: ["На паузе", "muted"],
+          exhausted: ["Бюджет исчерпан", "warning"],
+          pending: ["Нужно решение", "blue"],
+          approved: ["Одобрено · ждёт публикации", "warning"],
+          published: ["Опубликовано", "good"],
+          rejected: ["Отклонено", "muted"],
+          expired: ["Срок предложения истёк", "muted"],
+          cancelled: ["Предложение отменено", "muted"],
+          superseded: ["Предложение заменено", "muted"],
+          pending_consent: ["Ждёт согласия", "warning"],
+          insufficient_rights: ["Нужны права", "warning"],
+          removed: ["Отключён", "muted"]
+        };
+        return map[status] || ["Статус уточняется", "muted"];
+      }
+
+      function badge(status) {
+        var info = statusInfo(status);
+        return '<span class="badge ' + info[1] + '">' + info[0] + "</span>";
+      }
+
+      function categoryLabel(code) {
+        var item = categories.find(function (candidate) { return candidate.code === code; });
+        return item ? item.label : (code === "culture" ? "Культура" : "—");
+      }
+
+      function pricing(model) {
+        return pricingModels.find(function (item) { return item.code === model; }) || pricingModels[0];
+      }
+
+      function adStatus(ad) {
+        return ad.status === "active" && Number(ad.budget_left) <= 0 ? "exhausted" : ad.status;
+      }
+
+      function currentChannel() {
+        return state.channels.find(function (item) { return item.id === state.selectedChannel; }) || state.channels[0];
+      }
+
+      function currentAd() {
+        return state.ads.find(function (item) { return item.id === state.selectedAd; });
+      }
+
+      function offerFor(channel) {
+        var offerState = channel.proposal;
+        return offerState ? alternatives[offerState.index] : null;
+      }
+
+      function ensureProposalExpiry(channel) {
+        if (channel && channel.proposal && channel.proposal.status === "pending" &&
+            Number(channel.proposal.expiresAt) <= Date.now()) {
+          channel.proposal.status = "expired";
+          return true;
+        }
+        return false;
+      }
+
+      function scheduleProposalExpiry() {
+        window.clearTimeout(expiryTimer);
+        var pendingDeadlines = state.channels.filter(function (channel) {
+          return channel.proposal && channel.proposal.status === "pending";
+        }).map(function (channel) {
+          return Number(channel.proposal.expiresAt);
+        }).filter(Number.isFinite);
+        if (!pendingDeadlines.length) return;
+        var nextDeadline = Math.min.apply(Math, pendingDeadlines);
+        expiryTimer = window.setTimeout(function () {
+          var changed = state.channels.reduce(function (anyExpired, channel) {
+            return ensureProposalExpiry(channel) || anyExpired;
+          }, false);
+          if (changed) render();
+          else scheduleProposalExpiry();
+        }, Math.max(0, nextDeadline - Date.now() + 5));
+      }
+
+      function deadline(timestamp) {
+        return new Intl.DateTimeFormat("ru-RU", {
+          day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Moscow"
+        }).format(new Date(Number(timestamp))) + " МСК";
+      }
+
+      function screenKey() {
+        var key = state.page + ":" + state.tab;
+        if (state.page === "channel") key += ":" + state.selectedChannel;
+        if (state.page === "ad") key += ":" + state.selectedAd;
+        if (state.page === "create") key += ":" + state.wizardStep;
+        if (state.page === "edit") key += ":" + state.selectedAd + ":" + state.editField;
+        if (state.page === "scenario") key += ":" + state.scenario;
+        return key;
+      }
+
+      function rememberScroll() {
+        if (!screen) return;
+        state.scrollPositions[screenKey()] = screen.scrollTop;
+        if (persistTimer) window.clearTimeout(persistTimer);
+        persistTimer = window.setTimeout(saveState, 150);
+      }
+
+      function snapshot() {
+        return {
+          page: state.page, tab: state.tab, selectedChannel: state.selectedChannel,
+          selectedAd: state.selectedAd, wizardStep: state.wizardStep,
+          editField: state.editField, scenario: state.scenario
+        };
+      }
+
+      function visit(page, tab) {
+        rememberScroll();
+        state.history.push(snapshot());
+        state.page = page;
+        if (tab) state.tab = tab;
+        render();
+      }
+
+      function back() {
+        rememberScroll();
+        var previous = state.history.pop();
+        if (previous) {
+          Object.keys(previous).forEach(function (key) { state[key] = previous[key]; });
+        } else {
+          state.page = state.tab === "ads" ? "ads" : state.tab === "stats" ? "stats" : "channels";
+        }
+        render();
+      }
+
+      function tabIcon(name) {
+        var paths = {
+          channels: '<rect x="3.5" y="5" width="17" height="14" rx="3"></rect><path d="M7.5 9h9M7.5 13h5"></path>',
+          ads: '<path d="M4 6.5h16M4 12h16M4 17.5h10"></path><circle cx="18" cy="17.5" r="2.5"></circle>',
+          stats: '<path d="M4 19V5M4 19h16"></path><path d="m7 15 3-4 3 2 5-6"></path>'
+        };
+        return '<svg viewBox="0 0 24 24" aria-hidden="true">' + paths[name] + "</svg>";
+      }
+
+      function renderNav() {
+        var tabs = [
+          ["channels", "Каналы"],
+          ["ads", "Объявления"],
+          ["stats", "Статистика"]
+        ];
+        var template = document.createElement("template");
+        template.innerHTML = tabs.map(function (item) {
+          return '<button type="button" data-action="tab" data-tab="' + item[0] + '" class="' + (state.tab === item[0] ? "active" : "") + '"' + (state.tab === item[0] ? ' aria-current="page"' : "") + ">" + tabIcon(item[0]) + "<span>" + item[1] + "</span></button>";
+        }).join("");
+        patchChildren(nav, template.content);
+      }
+
+      function sameNodeKind(left, right) {
+        return left.nodeType === right.nodeType && (left.nodeType !== Node.ELEMENT_NODE || left.tagName === right.tagName);
+      }
+
+      function nodeKey(node) {
+        if (!(node instanceof Element)) return "";
+        var parts = ["id", "data-action", "data-tab", "data-id", "data-field", "data-value", "data-code", "data-proposal-action", "data-scenario"]
+          .filter(function (name) { return node.hasAttribute(name); })
+          .map(function (name) { return name + "=" + node.getAttribute(name); });
+        return parts.length ? node.tagName + ":" + parts.join("|") : "";
+      }
+
+      function syncAttributes(current, next) {
+        Array.from(current.attributes).forEach(function (attribute) {
+          if (!next.hasAttribute(attribute.name)) current.removeAttribute(attribute.name);
+        });
+        Array.from(next.attributes).forEach(function (attribute) {
+          if (current.getAttribute(attribute.name) !== attribute.value) current.setAttribute(attribute.name, attribute.value);
+        });
+      }
+
+      function patchNode(current, next) {
+        if (!sameNodeKind(current, next)) {
+          var replacement = next.cloneNode(true);
+          current.replaceWith(replacement);
+          return replacement;
+        }
+        if (current.nodeType === Node.TEXT_NODE || current.nodeType === Node.COMMENT_NODE) {
+          if (current.nodeValue !== next.nodeValue) current.nodeValue = next.nodeValue;
+          return current;
+        }
+        var active = document.activeElement === current;
+        syncAttributes(current, next);
+        if (current instanceof HTMLInputElement) {
+          current.defaultValue = next.defaultValue;
+          if (!active && current.value !== next.value) current.value = next.value;
+          current.checked = next.checked;
+          return current;
+        }
+        if (current instanceof HTMLTextAreaElement) {
+          current.defaultValue = next.defaultValue;
+          if (!active && current.value !== next.value) current.value = next.value;
+          return current;
+        }
+        patchChildren(current, next);
+        return current;
+      }
+
+      function patchChildren(currentParent, nextParent) {
+        var existing = Array.from(currentParent.childNodes);
+        var used = new Set();
+        var cursor = currentParent.firstChild;
+        Array.from(nextParent.childNodes).forEach(function (nextChild) {
+          var key = nodeKey(nextChild);
+          var match = key ? existing.find(function (candidate) {
+            return !used.has(candidate) && nodeKey(candidate) === key && sameNodeKind(candidate, nextChild);
+          }) : null;
+          if (!match && cursor && !used.has(cursor) && sameNodeKind(cursor, nextChild)) match = cursor;
+          if (!match) {
+            match = nextChild.cloneNode(true);
+            currentParent.insertBefore(match, cursor);
+          } else {
+            if (match !== cursor) currentParent.insertBefore(match, cursor);
+            patchNode(match, nextChild);
+          }
+          used.add(match);
+          cursor = match.nextSibling;
+        });
+        while (cursor) {
+          var following = cursor.nextSibling;
+          if (!used.has(cursor)) cursor.remove();
+          cursor = following;
+        }
+      }
+
+      function captureFocus() {
+        var active = document.activeElement;
+        if (!active || !phone.contains(active)) return null;
+        var attributes = {};
+        ["data-action", "data-tab", "data-id", "data-field", "data-value", "data-code", "data-proposal-action", "data-scenario"].forEach(function (name) {
+          if (active.hasAttribute(name)) attributes[name] = active.getAttribute(name);
+        });
+        var tag = active.tagName.toLowerCase();
+        var text = active.textContent ? active.textContent.trim() : "";
+        var candidates = Array.from(phone.querySelectorAll(tag)).filter(function (candidate) {
+          return Object.keys(attributes).every(function (name) {
+            return candidate.getAttribute(name) === attributes[name];
+          }) && (Object.keys(attributes).length > 0 || candidate.id === active.id && active.id || candidate.textContent.trim() === text);
+        });
+        var selection = null;
+        if (typeof active.selectionStart === "number" && typeof active.selectionEnd === "number") {
+          selection = {
+            start: active.selectionStart,
+            end: active.selectionEnd,
+            direction: active.selectionDirection
+          };
+        }
+        return {
+          id: active.id || "",
+          tag: tag,
+          attributes: attributes,
+          text: text,
+          index: Math.max(0, candidates.indexOf(active)),
+          selection: selection
+        };
+      }
+
+      function captureDisclosureState() {
+        return Array.from(screen.querySelectorAll("details")).map(function (details, index) {
+          var summary = details.querySelector("summary");
+          return { index: index, summary: summary ? summary.textContent.trim() : "", open: details.open };
+        });
+      }
+
+      function restoreDisclosureState(saved) {
+        var current = Array.from(screen.querySelectorAll("details"));
+        saved.forEach(function (item) {
+          var match = current[item.index];
+          if (match) {
+            var summary = match.querySelector("summary");
+            if (item.summary && (!summary || summary.textContent.trim() !== item.summary)) {
+              match = current.find(function (candidate) {
+                var candidateSummary = candidate.querySelector("summary");
+                return candidateSummary && candidateSummary.textContent.trim() === item.summary;
+              });
+            }
+          }
+          if (match) match.open = item.open;
+        });
+      }
+
+      function restoreFocus(saved, sameScreen) {
+        if (!saved) return;
+        var target = null;
+        if (sameScreen) {
+          if (saved.id) {
+            target = phone.querySelector('[id="' + saved.id + '"]');
+          }
+          if (!target) {
+            var candidates = Array.from(phone.querySelectorAll(saved.tag)).filter(function (candidate) {
+              return Object.keys(saved.attributes).every(function (name) {
+                return candidate.getAttribute(name) === saved.attributes[name];
+              }) && (Object.keys(saved.attributes).length > 0 || candidate.textContent.trim() === saved.text);
+            });
+            target = candidates[saved.index] || null;
+          }
+        }
+        if (!target || target.disabled) {
+          target = screen.querySelector("h1, h2") || screen.querySelector('button:not([disabled]), input:not([disabled]), textarea:not([disabled])');
+          if (target && (target.tagName === "H1" || target.tagName === "H2")) target.tabIndex = -1;
+        }
+        if (!target) return;
+        target.focus({ preventScroll: true });
+        if (saved.selection && typeof target.setSelectionRange === "function") {
+          try { target.setSelectionRange(saved.selection.start, saved.selection.end, saved.selection.direction); } catch (error) { /* not a text selection control */ }
+        }
+      }
+
+      function render() {
+        var nextKey = screenKey();
+        var sameScreen = renderedScreenKey === nextKey;
+        var focus = captureFocus();
+        var disclosures = captureDisclosureState();
+        renderNav();
+        var pages = {
+          channels: channelsPage,
+          channel: channelPage,
+          ads: adsPage,
+          ad: adPage,
+          stats: statsPage,
+          create: createPage,
+          edit: editPage,
+          topup: topupPage,
+          states: statesPage,
+          scenario: scenarioPage
+        };
+        var template = document.createElement("template");
+        template.innerHTML = pages[state.page] ? pages[state.page]() : channelsPage();
+        patchChildren(screen, template.content);
+        if (sameScreen) restoreDisclosureState(disclosures);
+        screen.scrollTop = Number(state.scrollPositions[screenKey()] || 0);
+        restoreFocus(focus, sameScreen);
+        renderedScreenKey = nextKey;
+        saveState();
+        scheduleProposalExpiry();
+      }
+
+      function channelsPage() {
+        var channel = currentChannel();
+        ensureProposalExpiry(channel);
+        var offer = offerFor(channel);
+        var pending = offer && channel.proposal.status === "pending";
+        var proposalSummary = pending ? offer.title + " · ожидаемый доход " + money(offer.income) : channel.proposal ? statusInfo(channel.proposal.status)[0] : "Новых предложений пока нет";
+        var list = state.channels.map(function (item) {
+          return '<button class="list-row" type="button" data-action="open-channel" data-id="' + item.id + '"><span class="avatar">' + escapeHtml(item.title.charAt(0)) + '</span><span class="row-copy"><strong>' + escapeHtml(item.title) + "</strong><span>" + new Intl.NumberFormat("ru-RU").format(item.subscribers) + " подписчиков · " + statusInfo(item.status)[0] + "</span><span>" + escapeHtml(item.proposal && item.proposal.status === "pending" ? alternatives[item.proposal.index].title : (item.id === channel.id ? proposalSummary : "Настройки размещения")) + '</span></span><span class="chevron" aria-hidden="true">›</span></button>';
+        }).join("");
+        return '<div class="head-row"><div><h1>Ваши каналы</h1><p class="intro">Предложения и настройки размещения</p></div></div>' +
+          (pending ? '<section class="spotlight"><div class="spotlight-top"><span>Новое предложение</span><span>До ' + deadline(channel.proposal.expiresAt) + '</span></div><h3>' + escapeHtml(offer.title) + '</h3><p>Для канала «' + escapeHtml(channel.title) + '»</p><div class="spotlight-bottom"><div class="spotlight-sum"><strong>' + money(offer.income) + '</strong><span>ожидаемый доход канала</span></div><button class="white-button" type="button" data-action="open-channel" data-id="' + channel.id + '">Посмотреть</button></div></section>' :
+            '<section class="card empty-state"><h3>' + (offer ? statusInfo(channel.proposal.status)[0] : "Предложений сейчас нет") + '</h3><p>' + (offer ? "В примере показан результат последнего решения. Новые предложения появятся после подходящего поста." : "Бот пришлёт предложение, когда для нового поста найдётся подходящая реклама.") + "</p></section>") +
+          '<div class="metrics"><div class="card metric"><span>Каналов</span><strong>' + state.channels.length + '</strong></div><div class="card metric"><span>Подписчики</span><strong>' + new Intl.NumberFormat("ru-RU").format(state.channels.reduce(function (sum, item) { return sum + item.subscribers; }, 0)) + '</strong></div></div>' +
+          '<div class="section-title"><strong>Ваши каналы</strong><span>Выберите канал</span></div><section class="card list">' + list + "</section>" +
+          '<button class="button secondary full" type="button" data-action="open-states">Посмотреть примеры состояний</button><p class="page-note">Макет показывает локальные примеры; реальные каналы и публикации не затрагиваются.</p>';
+      }
+
+      function channelPage() {
+        var channel = currentChannel();
+        ensureProposalExpiry(channel);
+        var offer = offerFor(channel);
+        var pending = offer && channel.proposal.status === "pending";
+        var categoriesHtml = categories.map(function (item) {
+          var allowed = Boolean(channel.allowed[item.code]);
+          return '<button class="switch-row" type="button" role="switch" aria-checked="' + allowed + '" data-action="toggle-category" data-code="' + item.code + '"><span>' + item.label + (item.regulated ? " <span aria-label=\"Регулируемая категория\">⚖</span>" : "") + '</span><span class="switch ' + (allowed ? "on" : "") + '" aria-hidden="true"></span></button>';
+        }).join("");
+        var proposalHtml = "";
+        if (pending) {
+          var model = pricing(offer.model);
+          var canNext = channel.proposal.used < 3 && channel.proposal.index < alternatives.length - 1;
+          var nextHelp = canNext ? "" : '<p class="page-note" role="status">Других вариантов по этому посту больше нет. Можно принять решение по текущему предложению.</p>';
+          proposalHtml = '<section class="card proposal-card" aria-label="Предложение рекламы"><div class="proposal-top"><span class="brand-icon" aria-hidden="true">' + escapeHtml(offer.advertiser.charAt(0)) + '</span><span><span>Предложение рекламы</span><strong>' + escapeHtml(offer.advertiser) + "</strong></span></div><h3>" + escapeHtml(offer.title) + '</h3><p>' + escapeHtml(offer.reason) + '</p><div class="offer-income"><span>Ожидаемый доход канала</span><strong>' + money(offer.income) + '</strong></div><div class="offer-meta"><span>' + model.label + " · " + money(offer.price) + " " + model.unit + '</span><span>До ' + deadline(channel.proposal.expiresAt) + '</span></div><details class="source-context"><summary>Исходный пост</summary><p>' + escapeHtml(offer.post) + '</p></details><div class="action-grid"><button class="button" type="button" data-action="proposal" data-proposal-action="approve">Одобрить</button><button class="button secondary" type="button" data-action="proposal" data-proposal-action="next"' + (canNext ? "" : " disabled") + ">Другой вариант</button></div>" + nextHelp + '<button class="button quiet full" type="button" data-action="proposal" data-proposal-action="reject">Отклонить это объявление</button><div class="category-block-action"><p>Больше не показывать рекламу из категории «' + categoryLabel(offer.category) + '» в этом канале</p><button class="button quiet full" type="button" data-action="proposal" data-proposal-action="block_cat">Не предлагать категорию</button></div></section>';
+        } else if (offer) {
+          proposalHtml = '<section class="card detail-list"><div class="detail-row"><span>Последнее предложение</span><strong>' + statusInfo(channel.proposal.status)[0] + '</strong></div><div class="detail-row"><span>Объявление</span><strong>' + escapeHtml(offer.title) + '</strong></div><div class="detail-row"><span>Результат</span><strong>' + proposalOutcome(channel.proposal.status) + "</strong></div></section>";
+        } else {
+          proposalHtml = '<section class="card empty-state"><h3>Предложений сейчас нет</h3><p>Бот пришлёт предложение, когда для нового поста найдётся подходящая реклама.</p></section>';
+        }
+        var pauseButton = channel.status === "active" || channel.status === "paused" ?
+          '<button class="button ' + (channel.status === "active" ? "quiet" : "secondary") + ' full" type="button" data-action="pause-channel">' + (channel.status === "active" ? "Приостановить канал" : "Возобновить канал") + "</button>" : "";
+        return '<button class="back" type="button" data-action="back">‹ Назад</button><div class="detail-header"><div><h1>' + escapeHtml(channel.title) + '</h1><p class="detail-subtitle">' + new Intl.NumberFormat("ru-RU").format(channel.subscribers) + " подписчиков</p></div>" + badge(channel.status) + "</div>" +
+          (channel.status === "insufficient_rights" ? '<div class="demo-note">Для работы боту нужны права «Читать все сообщения» и «Публиковать сообщения».</div>' : "") +
+          proposalHtml +
+          '<div class="section-title"><strong>Настройки канала</strong></div><section class="card setting-card"><div class="setting-head"><h3>Категории рекламы</h3><p>Регулируемые категории выключены, пока вы их не разрешите.</p></div>' + categoriesHtml + "</section>" +
+          '<p class="form-note">Автоудаление рекламы: через 48 ч, если боту выдано право удалять сообщения.</p>' + pauseButton;
+      }
+
+      function proposalOutcome(status) {
+        var text = {
+          approved: "В локальном примере объявление одобрено и ожидает публикации.",
+          published: "Реклама опубликована в канале.",
+          rejected: "Это объявление отклонено.",
+          expired: "Предложение больше нельзя выполнить.",
+          cancelled: "Предложение отменено, например если канал отключили.",
+          superseded: "Показан другой вариант."
+        };
+        return text[status] || "Решение сохранено в локальном примере.";
+      }
+
+      function adsPage() {
+        var total = state.ads.reduce(function (sum, ad) { return sum + Number(ad.budget_left); }, 0);
+        var hasDraft = state.wizardStep !== 1 || Object.values(state.draft).some(function (value) { return String(value).trim().length > 0; });
+        var cards = state.ads.map(function (ad) {
+          var status = adStatus(ad);
+          var model = pricing(ad.pricing_model);
+          var percent = Number(ad.budget_total) > 0 ? Math.max(0, Math.min(100, Number(ad.budget_left) / Number(ad.budget_total) * 100)) : 0;
+          return '<section class="card ad-card"><button class="ad-open" type="button" data-action="open-ad" data-id="' + ad.id + '"><div class="ad-card-head"><h3>' + escapeHtml(ad.title) + "</h3>" + badge(status) + '</div><p>' + escapeHtml(ad.body) + '</p><div class="ad-card-foot"><span>' + categoryLabel(ad.category) + " · " + model.label + " · " + money(ad.price) + " " + model.unit + '</span><strong>' + money(ad.budget_left) + " остаток</strong></div><div class=\"budget-track\" aria-label=\"Остаток бюджета\"><span style=\"width:" + percent + '%\"></span></div></button></section>';
+        }).join("");
+        return '<div class="head-row"><div><h1>Объявления</h1><p class="intro">Рекламодатель «' + escapeHtml(state.advertiser) + '»</p></div></div><section class="card ad-summary"><div><span>Остаток бюджета</span><strong>' + money(total) + '</strong><small> по всем объявлениям</small></div><span class="avatar green" aria-hidden="true">↗</span></section><div class="section-title"><strong>Ваши объявления</strong><span>' + state.ads.length + (state.ads.length === 1 ? " шт." : " шт.") + "</span></div>" +
+          (state.ads.length ? cards : '<section class="card empty-state"><h3>Пока нет объявлений</h3><p>Создайте первое объявление, чтобы оно участвовало в подборе.</p></section>') +
+          '<button class="button full" type="button" data-action="create">' + (hasDraft ? "Продолжить черновик" : "Создать объявление") + '</button><button class="button secondary full" type="button" data-action="open-states">Примеры состояний</button><p class="page-note">Запуск и пополнение в этом макете меняют только примерные данные. Реальной оплаты нет.</p>';
+      }
+
+      function adPage() {
+        var ad = currentAd();
+        if (!ad) return '<button class="back" type="button" data-action="back">‹ Назад</button><section class="card empty-state"><h3>Объявление не найдено</h3><p>Вернитесь к списку объявлений.</p></section>';
+        var model = pricing(ad.pricing_model);
+        var status = adStatus(ad);
+        var percent = Number(ad.budget_total) > 0 ? Math.max(0, Math.min(100, Number(ad.budget_left) / Number(ad.budget_total) * 100)) : 0;
+        var canPause = status === "active" || status === "paused";
+        return '<button class="back" type="button" data-action="back">‹ Назад</button><div class="detail-header"><div><h1>' + escapeHtml(ad.title) + '</h1><p class="detail-subtitle">' + categoryLabel(ad.category) + " · " + model.label + " · " + money(ad.price) + " " + model.unit + "</p></div>" + badge(status) + "</div>" +
+          '<section class="card detail-list"><div class="editable-row"><div><span class="field-help">Заголовок</span><h3>' + escapeHtml(ad.title) + '</h3></div><button class="button outline small" type="button" aria-label="Изменить заголовок" data-action="edit" data-field="title">Изменить</button></div><div class="editable-row"><div><span class="field-help">Текст объявления</span><p>' + escapeHtml(ad.body) + '</p></div><button class="button outline small" type="button" aria-label="Изменить текст объявления" data-action="edit" data-field="body">Изменить</button></div><div class="editable-row"><div><span class="field-help">Ссылка</span><strong class="preview-link">' + escapeHtml(ad.url) + '</strong></div><button class="button outline small" type="button" aria-label="Изменить ссылку" data-action="edit" data-field="url">Изменить</button></div><div class="editable-row"><div><span class="field-help">Категория</span><strong>' + categoryLabel(ad.category) + '</strong></div><button class="button outline small" type="button" aria-label="Изменить категорию" data-action="edit" data-field="category">Изменить</button></div><div class="editable-row"><div><span class="field-help">Цена</span><strong>' + model.label + " · " + money(ad.price) + '</strong><span class="field-help">' + model.unit + '</span></div><button class="button outline small" type="button" aria-label="Изменить цену" data-action="edit" data-field="price">Изменить</button></div></section>' +
+          '<div class="section-title"><strong>Бюджет</strong><span>Демо-пополнение</span></div><section class="card stats-hero"><span>Осталось из ' + money(ad.budget_total) + '</span><strong>' + money(ad.budget_left) + '</strong><div class="budget-track" aria-label="Остаток бюджета"><span style="width:' + percent + '%"></span></div></section><div class="action-grid"><button class="button secondary" type="button" data-action="topup">Пополнить демо</button>' + (canPause ? '<button class="button ' + (status === "active" ? "quiet" : "secondary") + '" type="button" data-action="pause-ad">' + (status === "active" ? "Приостановить" : "Возобновить") + "</button>" : "") + "</div>" +
+          '<section class="card detail-list"><div class="detail-row"><span>Размещений</span><strong>' + new Intl.NumberFormat("ru-RU").format(ad.placements) + '</strong></div><div class="detail-row"><span>Просмотров</span><strong>' + new Intl.NumberFormat("ru-RU").format(ad.views) + '</strong></div><div class="detail-row"><span>Кликов</span><strong>' + new Intl.NumberFormat("ru-RU").format(ad.clicks) + '</strong></div><div class="detail-row"><span>Потрачено</span><strong>' + money(ad.spent) + '</strong></div></section><p class="page-note">В реальном приложении редактируются только заголовок, текст, ссылка, категория и цена.</p>';
+      }
+
+      function statsPage() {
+        var totalEarned = 3480;
+        var totalSpent = state.ads.reduce(function (sum, ad) { return sum + Number(ad.spent); }, 0);
+        var adSummary = state.ads.map(function (ad) {
+          return '<div class="per-ad-row"><strong>' + escapeHtml(ad.title) + '</strong><span>' + new Intl.NumberFormat("ru-RU").format(ad.placements) + " размещений · " + new Intl.NumberFormat("ru-RU").format(ad.views) + " просмотров · " + new Intl.NumberFormat("ru-RU").format(ad.clicks) + " кликов</span><span>Потрачено " + money(ad.spent) + " · остаток " + money(ad.budget_left) + "</span></div>";
+        }).join("");
+        return '<div class="head-row"><div><h1>Статистика</h1><p class="intro">Доход каналов и расходы рекламодателя показаны отдельно</p></div></div><section class="stats-section"><h3>Доход каналов · пример за 30 дней</h3><div class="card stats-hero"><span>По двум каналам</span><strong>' + money(totalEarned) + '</strong><div class="stats-grid"><div class="card stat-tile"><span>Размещений</span><strong>12</strong></div><div class="card stat-tile"><span>Просмотров</span><strong>86 420</strong></div><div class="card stat-tile"><span>Кликов</span><strong>1 284</strong></div><div class="card stat-tile"><span>Заработано</span><strong>' + money(totalEarned) + "</strong></div></div></div></section>" +
+          '<section class="stats-section"><h3>Расход рекламодателя «' + escapeHtml(state.advertiser) + '» · пример</h3><div class="card stats-hero"><span>Потрачено по объявлениям</span><strong>' + money(totalSpent) + '</strong><div class="detail-list"><div class="detail-row"><span>Размещений</span><strong>13</strong></div><div class="detail-row"><span>Просмотров</span><strong>71 540</strong></div><div class="detail-row"><span>Кликов</span><strong>1 784</strong></div></div><div class="per-ad-row">' + adSummary + "</div></div></section>" +
+          '<p class="page-note">Значения — демонстрационные примеры. Здесь нет графика и подключения к статистике сервиса.</p>';
+      }
+
+      function stepConfig(step) {
+        return {
+          1: { title: "Заголовок", field: "title", label: "Заголовок объявления", help: "От 1 до 100 символов.", placeholder: "Например, прогулки по старому городу", type: "text" },
+          2: { title: "Текст", field: "body", label: "Текст объявления", help: "От 1 до 1000 символов.", placeholder: "Коротко расскажите о предложении", type: "textarea" },
+          3: { title: "Ссылка", field: "url", label: "Куда вести читателей", help: "Ссылка должна начинаться с http:// или https://; до 2048 символов.", placeholder: "https://example.com", type: "url" },
+          4: { title: "Категория", field: "category", help: "Выберите одну из доступных категорий.", type: "category" },
+          5: { title: "Модель оплаты", field: "pricing_model", help: "Цена указывается за выбранную единицу.", type: "pricing" },
+          6: { title: "Цена", field: "price", label: "Цена в рублях", help: "От 0,01 до 100 000 000 ₽, не больше двух знаков после запятой.", placeholder: "Например, 250 или 1500,50", type: "money" },
+          7: { title: "Бюджет", field: "budget", label: "Бюджет в рублях", help: "От 0,01 до 100 000 000 ₽; не меньше цены объявления.", placeholder: "Например, 5000", type: "money" }
+        }[step];
+      }
+
+      function inputField(field, value, label, placeholder, help, error, maxLength, multiline) {
+        var id = "field-" + field;
+        var input = multiline ?
+          '<textarea id="' + id + '" data-field="' + field + '" maxlength="' + maxLength + '" placeholder="' + escapeHtml(placeholder) + '" aria-invalid="' + Boolean(error) + '">' + escapeHtml(value) + '</textarea>' :
+          '<input id="' + id + '" data-field="' + field + '" type="text" inputmode="' + (field === "price" || field === "budget" ? "decimal" : field === "url" ? "url" : "text") + '" maxlength="' + (maxLength || (field === "url" ? 2048 : 100)) + '" value="' + escapeHtml(value) + '" placeholder="' + escapeHtml(placeholder || "") + '" aria-invalid="' + Boolean(error) + '">';
+        var count = maxLength ? '<span>' + String(value || "").length + "/" + maxLength + "</span>" : "<span></span>";
+        return '<div class="field"><label class="field-label" for="' + id + '">' + label + "</label>" + input + '<div class="field-foot">' + (error ? '<span class="field-error" role="alert">' + escapeHtml(error) + "</span>" : "<span></span>") + count + "</div>" + (help ? '<p class="field-help">' + help + "</p>" : "") + "</div>";
+      }
+
+      function choiceList(type, selected, error) {
+        var field = type === "category" ? "category" : "pricing_model";
+        var label = type === "category" ? "Категории объявлений" : "Модель оплаты";
+        var hasSelection = type === "category"
+          ? categories.some(function (item) { return item.code === selected; })
+          : pricingModels.some(function (item) { return item.code === selected; });
+        var errorId = "choice-error-" + type;
+        if (type === "category") {
+          return '<div class="choice-field"><div class="choice-list" role="radiogroup" aria-label="' + label + '"' + (error ? ' aria-invalid="true" aria-describedby="' + errorId + '"' : "") + '>' + categories.map(function (item, index) {
+            var isSelected = selected === item.code;
+            var tabStop = isSelected || (!hasSelection && index === 0);
+            return '<button class="choice-row ' + (isSelected ? "selected" : "") + '" type="button" role="radio" aria-checked="' + isSelected + '" tabindex="' + (tabStop ? "0" : "-1") + '" data-action="choose" data-field="category" data-value="' + item.code + '"><span>' + item.label + (item.regulated ? " ⚖" : "") + '</span><span class="radio-mark" aria-hidden="true"></span></button>';
+          }).join("") + '</div>' + (error ? '<p class="field-error" id="' + errorId + '" role="alert">' + escapeHtml(error) + "</p>" : "") + "</div>";
+        }
+        return '<div class="choice-field"><div class="choice-list" role="radiogroup" aria-label="' + label + '"' + (error ? ' aria-invalid="true" aria-describedby="' + errorId + '"' : "") + '>' + pricingModels.map(function (item, index) {
+          var isSelected = selected === item.code;
+          var tabStop = isSelected || (!hasSelection && index === 0);
+          return '<button class="choice-row ' + (isSelected ? "selected" : "") + '" type="button" role="radio" aria-checked="' + isSelected + '" tabindex="' + (tabStop ? "0" : "-1") + '" data-action="choose" data-field="pricing_model" data-value="' + item.code + '"><span><strong>' + item.label + '</strong><small>' + item.unit + '</small></span><span class="radio-mark" aria-hidden="true"></span></button>';
+        }).join("") + '</div>' + (error ? '<p class="field-error" id="' + errorId + '" role="alert">' + escapeHtml(error) + "</p>" : "") + "</div>";
+      }
+
+      function createPage() {
+        if (state.wizardStep === "preview") return previewPage();
+        var step = Number(state.wizardStep) || 1;
+        var config = stepConfig(step);
+        var field = config.field;
+        var value = state.draft[field] || "";
+        var error = state.fieldErrors[field] || "";
+        var content = "";
+        if (config.type === "category" || config.type === "pricing") {
+          content = choiceList(config.type, value, error);
+        } else {
+          content = inputField(field, value, config.label, config.placeholder, config.help, error, field === "title" ? 100 : field === "body" ? 1000 : field === "url" ? 2048 : 0, config.type === "textarea");
+        }
+        return '<button class="back" type="button" data-action="wizard-back">‹ Назад</button><div class="wizard-progress"><span>Шаг ' + step + " из 7</span><div class=\"progress-track\"><span style=\"width:" + (step / 7 * 100) + '%"></span></div></div><h1 class="wizard-title">' + config.title + '</h1><p class="intro">' + config.help + '</p>' + content + '<div class="wizard-actions"><button class="button" type="button" data-action="wizard-next">Продолжить</button></div><button class="cancel-flow" type="button" data-action="cancel-create">Отменить создание</button><p class="page-note">Черновик сохраняется в этой вкладке. Отмена очистит только введённые данные.</p>';
+      }
+
+      function previewPage() {
+        var categoryName = categoryLabel(state.draft.category);
+        var model = pricing(state.draft.pricing_model);
+        var title = escapeHtml(state.draft.title);
+        var body = escapeHtml(state.draft.body);
+        return '<button class="back" type="button" data-action="wizard-back">‹ Назад</button><div class="head-row"><div><h1>Проверьте объявление</h1><p class="intro">Перед запуском проверьте текст и условия</p></div></div><section class="preview-post"><div class="preview-brand">' + escapeHtml(state.advertiser || "Рекламодатель") + '</div><h2>' + title + '</h2><p class="preview-body">' + body + '</p><p class="preview-marking">#Реклама. ' + escapeHtml(state.advertiser || "Рекламодатель") + '. erid: демонстрационный</p><span class="preview-link">' + escapeHtml(state.draft.url) + "</span></section>" +
+          '<section class="preview-details"><div class="detail-row"><span>Категория</span><strong>' + categoryName + '</strong></div><div class="detail-row"><span>Модель оплаты</span><strong>' + model.label + " · " + money(state.draft.price) + " " + model.unit + '</strong></div><div class="detail-row"><span>Бюджет</span><strong>' + money(state.draft.budget) + "</strong></div></section>" +
+          '<div class="demo-note">Запуск создаст объявление только в локальном примере. Реальной оплаты и модерации нет; ERID демонстрационный.</div>' +
+          (state.fieldErrors.general ? '<p class="field-error" role="alert">' + escapeHtml(state.fieldErrors.general) + "</p>" : "") +
+          '<div class="wizard-actions"><button class="button" type="button" data-action="launch-ad">Запустить объявление</button></div><button class="cancel-flow" type="button" data-action="cancel-create">Отменить создание</button>';
+      }
+
+      function editPage() {
+        var ad = currentAd();
+        if (!ad) return '<button class="back" type="button" data-action="back">‹ Назад</button><section class="card empty-state"><h3>Объявление не найдено</h3></section>';
+        var field = state.editField;
+        var names = { title: "Заголовок", body: "Текст объявления", url: "Ссылка", category: "Категория", price: "Цена" };
+        var content = field === "category" ?
+          choiceList("category", state.editValue, state.editError) :
+          inputField(field, state.editValue, names[field], field === "url" ? "https://example.com" : field === "price" ? "Например, 250 или 1500,50" : "", field === "title" ? "От 1 до 100 символов." : field === "body" ? "От 1 до 1000 символов." : field === "url" ? "Нужна ссылка вида https://example.com." : "От 0,01 до 100 000 000 ₽, до двух знаков после запятой.", state.editError, field === "title" ? 100 : field === "body" ? 1000 : field === "url" ? 2048 : 0, field === "body");
+        return '<button class="back" type="button" data-action="back">‹ Назад</button><div class="head-row"><div><h1>' + names[field] + '</h1><p class="intro">Изменение относится только к этому примеру</p></div></div>' + content + '<button class="button full" type="button" data-action="save-edit">Сохранить</button><button class="button outline full" type="button" data-action="back">Отмена</button>';
+      }
+
+      function topupPage() {
+        var ad = currentAd();
+        if (!ad) return '<button class="back" type="button" data-action="back">‹ Назад</button><section class="card empty-state"><h3>Объявление не найдено</h3></section>';
+        return '<button class="back" type="button" data-action="back">‹ Назад</button><div class="head-row"><div><h1>Пополнение бюджета</h1><p class="intro">' + escapeHtml(ad.title) + '</p></div></div><div class="demo-note">Демонстрационное пополнение увеличит общий и оставшийся бюджет в этом макете. Реальные деньги не списываются.</div>' + inputField("topup", state.topupAmount, "Сумма, ₽", "Например, 500", "От 0,01 до 100 000 000 ₽, до двух знаков после запятой.", state.topupError, 0, false) + '<button class="button full" type="button" data-action="apply-topup">Пополнить демо</button>';
+      }
+
+      function statesPage() {
+        var scenarios = [
+          ["loading", "Загрузка", "Скелетон экрана"],
+          ["empty", "Пустой список", "Нет объявлений и статистики"],
+          ["error", "Ошибка", "Пример ошибки загрузки"],
+          ["active", "Активное", "Объявление в подборе"],
+          ["paused", "На паузе", "Объявление приостановлено"],
+          ["exhausted", "Бюджет исчерпан", "Статус без возможности паузы"],
+          ["expired", "Предложение истекло", "Решение больше недоступно"],
+          ["published", "Опубликовано", "Публикация уже состоялась"]
+        ];
+        return '<button class="back" type="button" data-action="back">‹ Назад</button><div class="head-row"><div><h1>Примеры состояний</h1><p class="intro">Выберите экран, чтобы посмотреть его состояние</p></div></div><div class="demo-note">Это статические примеры интерфейса. Макет не отправляет запросы и не пытается подключиться к сервису.</div><div class="scenario-grid">' + scenarios.map(function (item) {
+          return '<button class="scenario-button" type="button" data-action="scenario" data-scenario="' + item[0] + '">' + item[1] + '<span>' + item[2] + "</span></button>";
+        }).join("") + "</div>";
+      }
+
+      function scenarioPage() {
+        var examples = {
+          loading: '<section class="loading-state" aria-label="Загружаем данные, пример" aria-busy="true"><div class="skeleton skeleton-title"></div><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></section><p class="page-note">Пример состояния загрузки без сетевого запроса.</p>',
+          empty: '<section class="card empty-state"><h3>Пока нет объявлений</h3><p>Здесь появятся показатели объявлений после запуска и первых размещений.</p></section><section class="card empty-state" style="margin-top:9px"><h3>Пока нет статистики</h3><p>Показатели появятся после сбора просмотров и кликов.</p></section>',
+          error: '<section class="card error-state" role="alert"><h3>Не удалось загрузить данные</h3><p>Пример сообщения об ошибке. В демонстрации нет подключения, поэтому повторного запроса не будет.</p><button class="button outline small" style="margin-top:11px" type="button" data-action="open-states">К примерам состояний</button></section>',
+          active: scenarioAd("active"),
+          paused: scenarioAd("paused"),
+          exhausted: scenarioAd("exhausted"),
+          expired: '<section class="card proposal-card"><div class="proposal-top"><span class="brand-icon" aria-hidden="true">М</span><span><span>Последнее предложение</span><strong>Маяк</strong></span></div><span class="badge muted">Срок предложения истёк</span><h3 style="margin-top:12px">Лекторий «Маяк»</h3><p>Предложение больше нельзя выполнить. Новые предложения появятся после публикации подходящего поста.</p><div class="offer-meta"><span>CPM · 420 ₽ за 1000 показов</span><span>Срок истёк</span></div></section>',
+          published: '<section class="card proposal-card"><div class="proposal-top"><span class="brand-icon" aria-hidden="true">М</span><span><span>Последнее предложение</span><strong>Маяк</strong></span></div><span class="badge good">Опубликовано</span><h3 style="margin-top:12px">Лекторий «Маяк»</h3><p>Реклама опубликована в канале. Это состояние наступает после фактической публикации.</p><div class="offer-meta"><span>CPM · 420 ₽ за 1000 показов</span><span>Опубликовано в примере</span></div></section>'
+        };
+        var names = { loading: "Загрузка", empty: "Пустое состояние", error: "Ошибка загрузки", active: "В подборе", paused: "На паузе", exhausted: "Бюджет исчерпан", expired: "Срок предложения истёк", published: "Опубликовано" };
+        return '<button class="back" type="button" data-action="back">‹ Назад</button><div class="head-row"><div><h1>' + names[state.scenario] + '</h1><p class="intro">Локальный пример состояния</p></div></div>' + (examples[state.scenario] || examples.loading);
+      }
+
+      function scenarioAd(status) {
+        var ad = status === "paused" ? state.ads.find(function (item) { return adStatus(item) === "paused"; }) :
+          status === "exhausted" ? state.ads.find(function (item) { return adStatus(item) === "exhausted"; }) :
+          state.ads.find(function (item) { return adStatus(item) === "active"; });
+        var sample = ad || state.ads[0];
+        return '<section class="card ad-card"><div class="ad-card-head"><h3>' + escapeHtml(sample.title) + "</h3>" + badge(status) + '</div><p>' + escapeHtml(sample.body) + '</p><div class="ad-card-foot"><span>' + categoryLabel(sample.category) + " · " + pricing(sample.pricing_model).label + '</span><strong>' + money(sample.budget_left) + " остаток</strong></div>" + (status === "exhausted" ? '<p class="page-note">Для объявления с исчерпанным бюджетом действие паузы недоступно.</p>' : "") + "</section>";
+      }
+
+      function validateUrl(value) {
+        var text = String(value || "").trim();
+        if (!text || text.length > 2048 || /\s/.test(text)) return false;
+        try {
+          var parsed = new URL(text);
+          return (parsed.protocol === "http:" || parsed.protocol === "https:") && Boolean(parsed.host);
+        } catch (error) { return false; }
+      }
+
+      function parseMoney(value) {
+        var text = String(value == null ? "" : value).trim().replace(/[\s\u00a0]*[₽]$/, "").replace(/\s|\u00a0/g, "").replace(",", ".");
+        if (!/^\d+(?:\.\d{1,2})?$/.test(text)) return null;
+        var amount = Number(text);
+        if (!Number.isFinite(amount) || amount < 0.01 || amount > 100000000) return null;
+        return Math.round(amount * 100) / 100;
+      }
+
+      function validateDraftField(field) {
+        var value = String(state.draft[field] || "").trim();
+        if (field === "title" && (!value || value.length > 100)) return "Заголовок: от 1 до 100 символов.";
+        if (field === "body" && (!value || value.length > 1000)) return "Текст: от 1 до 1000 символов.";
+        if (field === "url" && !validateUrl(value)) return "Нужна ссылка вида https://example.com.";
+        if (field === "category" && !categories.some(function (item) { return item.code === value; })) return "Выберите доступную категорию.";
+        if (field === "pricing_model" && !pricingModels.some(function (item) { return item.code === value; })) return "Выберите модель оплаты.";
+        if (field === "price" && parseMoney(value) === null) return "Укажите сумму от 0,01 до 100 000 000 ₽ с точностью до копейки.";
+        if (field === "budget" && parseMoney(value) === null) return "Укажите сумму от 0,01 до 100 000 000 ₽ с точностью до копейки.";
+        if (field === "budget" && parseMoney(value) < parseMoney(state.draft.price)) return "Бюджет не может быть меньше цены (" + money(parseMoney(state.draft.price)) + ").";
+        return "";
+      }
+
+      function nextWizardStep() {
+        rememberScroll();
+        var step = Number(state.wizardStep);
+        var config = stepConfig(step);
+        var message = validateDraftField(config.field);
+        state.fieldErrors = {};
+        if (message) {
+          state.fieldErrors[config.field] = message;
+          render();
+          var bad = screen.querySelector('[data-field="' + config.field + '"]');
+          if (bad) bad.focus();
+          return;
+        }
+        if (step === 7) state.wizardStep = "preview";
+        else state.wizardStep = step + 1;
+        render();
+      }
+
+      function launchAd() {
+        var checks = ["title", "body", "url", "category", "pricing_model", "price", "budget"];
+        var firstError = "";
+        state.fieldErrors = {};
+        checks.forEach(function (field) {
+          var message = validateDraftField(field);
+          if (message) {
+            state.fieldErrors[field] = message;
+            if (!firstError) firstError = field;
+          }
+        });
+        if (firstError) {
+          state.wizardStep = checks.indexOf(firstError) + 1;
+          render();
+          notify("Проверьте поля объявления");
+          return;
+        }
+        var id = state.ads.reduce(function (max, item) { return Math.max(max, item.id); }, 0) + 1;
+        var price = parseMoney(state.draft.price);
+        var budget = parseMoney(state.draft.budget);
+        state.ads.unshift({
+          id: id,
+          title: state.draft.title.trim(),
+          body: state.draft.body.trim(),
+          url: state.draft.url.trim(),
+          category: state.draft.category,
+          pricing_model: state.draft.pricing_model,
+          price: price,
+          budget_total: budget,
+          budget_left: budget,
+          status: "active",
+          placements: 0,
+          views: 0,
+          clicks: 0,
+          spent: 0
+        });
+        state.draft = { title: "", body: "", url: "", category: "", pricing_model: "", price: "", budget: "" };
+        state.fieldErrors = {};
+        state.wizardStep = 1;
+        state.selectedAd = id;
+        state.tab = "ads";
+        state.page = "ad";
+        state.history = [{ page: "ads", tab: "ads", selectedChannel: state.selectedChannel, selectedAd: id, wizardStep: 1, editField: "", scenario: "loading" }];
+        render();
+        notify("Объявление запущено в локальном примере");
+      }
+
+      function validateEdit() {
+        var field = state.editField;
+        var value = String(state.editValue || "").trim();
+        if (field === "title" && (!value || value.length > 100)) return "Заголовок: от 1 до 100 символов.";
+        if (field === "body" && (!value || value.length > 1000)) return "Текст: от 1 до 1000 символов.";
+        if (field === "url" && !validateUrl(value)) return "Нужна ссылка вида https://example.com.";
+        if (field === "category" && !categories.some(function (item) { return item.code === value; })) return "Выберите доступную категорию.";
+        if (field === "price" && parseMoney(value) === null) return "Укажите сумму от 0,01 до 100 000 000 ₽ с точностью до копейки.";
+        return "";
+      }
+
+      function applyEdit() {
+        var message = validateEdit();
+        state.editError = message;
+        if (message) {
+          render();
+          var input = screen.querySelector('[data-field="' + state.editField + '"]');
+          if (input) input.focus();
+          return;
+        }
+        var ad = currentAd();
+        var nextValue = state.editField === "price" ? parseMoney(state.editValue) : String(state.editValue).trim();
+        var oldValue = state.editField === "price" ? Number(ad.price) : String(ad[state.editField] == null ? "" : ad[state.editField]).trim();
+        if (nextValue === oldValue) {
+          state.editError = "";
+          if (state.history.length && state.history[state.history.length - 1].page === "ad") state.history.pop();
+          state.page = "ad";
+          render();
+          return;
+        }
+        if (state.editField === "price") ad.price = nextValue;
+        else ad[state.editField] = nextValue;
+        state.editError = "";
+        if (state.history.length && state.history[state.history.length - 1].page === "ad") state.history.pop();
+        state.page = "ad";
+        render();
+        notify("Изменения сохранены в примере");
+      }
+
+      function applyTopup() {
+        var amount = parseMoney(state.topupAmount);
+        if (amount === null) {
+          state.topupError = "Укажите сумму от 0,01 до 100 000 000 ₽ с точностью до копейки.";
+          render();
+          var input = screen.querySelector('[data-field="topup"]');
+          if (input) input.focus();
+          return;
+        }
+        var ad = currentAd();
+        ad.budget_total = Math.round((Number(ad.budget_total) + amount) * 100) / 100;
+        ad.budget_left = Math.round((Number(ad.budget_left) + amount) * 100) / 100;
+        state.topupAmount = "";
+        state.topupError = "";
+        if (state.history.length && state.history[state.history.length - 1].page === "ad") state.history.pop();
+        state.page = "ad";
+        render();
+        notify("Бюджет увеличен на " + money(amount) + " (демо)");
+      }
+
+      function actOnProposal(action) {
+        var channel = currentChannel();
+        ensureProposalExpiry(channel);
+        var proposal = channel.proposal;
+        if (!proposal || proposal.status !== "pending") {
+          render();
+          if (proposal && proposal.status === "expired") toast("Срок предложения истёк");
+          return;
+        }
+        var offer = offerFor(channel);
+        if (action === "approve") {
+          proposal.status = "approved";
+          notify("Предложение одобрено в локальном примере");
+        } else if (action === "reject") {
+          proposal.status = "rejected";
+          notify("Объявление отклонено в локальном примере");
+        } else if (action === "next") {
+          if (proposal.used >= 3 || proposal.index >= alternatives.length - 1) {
+            notify("Других вариантов больше нет");
+            return;
+          }
+          proposal.index += 1;
+          proposal.used += 1;
+          proposal.expiresAt = Date.now() + 120 * 60 * 1000;
+          notify("Показан другой вариант");
+        } else if (action === "block_cat") {
+          channel.allowed[offer.category] = false;
+          proposal.status = "rejected";
+          notify("Категория отключена в этом канале, объявление отклонено");
+        }
+        render();
+      }
+
+      function toast(message) {
+        var old = phone.querySelector(".toast");
+        if (old) old.remove();
+        var item = document.createElement("div");
+        item.className = "toast";
+        item.setAttribute("role", "status");
+        item.textContent = message;
+        phone.appendChild(item);
+        window.clearTimeout(toastTimer);
+        toastTimer = window.setTimeout(function () { item.remove(); }, 2600);
+      }
+
+      function resetDemo() {
+        window.clearTimeout(toastTimer);
+        try { sessionStorage.removeItem(STORAGE_KEY); } catch (error) { /* storage is optional */ }
+        state = initialState();
+        render();
+        toast("Демонстрация сброшена");
+      }
+
+      document.addEventListener("scroll", function (event) {
+        if (event.target === screen) rememberScroll();
+      }, true);
+
+      document.addEventListener("input", function (event) {
+        var target = event.target;
+        if (!target || !target.dataset) return;
+        if (target.dataset.field && Object.prototype.hasOwnProperty.call(state.draft, target.dataset.field)) {
+          state.draft[target.dataset.field] = target.value;
+          state.fieldErrors[target.dataset.field] = "";
+          var count = target.parentElement.querySelector(".field-foot span:last-child");
+          if (count && (target.dataset.field === "title" || target.dataset.field === "body" || target.dataset.field === "url")) {
+            var limit = target.dataset.field === "title" ? 100 : target.dataset.field === "body" ? 1000 : 2048;
+            count.textContent = target.value.length + "/" + limit;
+          }
+          saveState();
+        } else if (target.dataset.field && target.dataset.field === "topup") {
+          state.topupAmount = target.value;
+          state.topupError = "";
+          saveState();
+        } else if (target.dataset.field && state.page === "edit") {
+          state.editValue = target.value;
+          state.editError = "";
+          saveState();
+        }
+      });
+
+      document.addEventListener("click", function (event) {
+        var control = event.target.closest("[data-action]");
+        if (!control) return;
+        var action = control.dataset.action;
+        if (action !== "reset") rememberScroll();
+        if (action === "reset") {
+          resetDemo();
+        } else if (action === "tab") {
+          state.history = [];
+          state.tab = control.dataset.tab;
+          state.page = state.tab === "ads" ? "ads" : state.tab === "stats" ? "stats" : "channels";
+          render();
+        } else if (action === "back") {
+          back();
+        } else if (action === "open-channel") {
+          state.selectedChannel = Number(control.dataset.id);
+          visit("channel", "channels");
+        } else if (action === "open-ad") {
+          state.selectedAd = Number(control.dataset.id);
+          visit("ad", "ads");
+        } else if (action === "create") {
+          var hasDraft = state.wizardStep !== 1 || Object.values(state.draft).some(function (value) { return String(value).trim().length > 0; });
+          if (!hasDraft) {
+            state.draft = { title: "", body: "", url: "", category: "", pricing_model: "", price: "", budget: "" };
+            state.fieldErrors = {};
+            state.wizardStep = 1;
+          }
+          visit("create", "ads");
+        } else if (action === "wizard-next") {
+          nextWizardStep();
+        } else if (action === "wizard-back") {
+          if (state.wizardStep === "preview") {
+            state.wizardStep = 7;
+            render();
+          } else if (Number(state.wizardStep) > 1) {
+            state.wizardStep = Number(state.wizardStep) - 1;
+            state.fieldErrors = {};
+            render();
+          } else {
+            back();
+          }
+        } else if (action === "cancel-create") {
+          var hasDraftContent = Object.values(state.draft).some(function (value) { return String(value).trim().length > 0; });
+          if (hasDraftContent && !window.confirm("Очистить введённый черновик?")) return;
+          state.draft = { title: "", body: "", url: "", category: "", pricing_model: "", price: "", budget: "" };
+          state.fieldErrors = {};
+          state.wizardStep = 1;
+          state.history = [];
+          state.page = "ads";
+          state.tab = "ads";
+          render();
+          toast("Черновик очищен");
+        } else if (action === "choose") {
+          if (state.page === "create") {
+            state.draft[control.dataset.field] = control.dataset.value;
+            state.fieldErrors[control.dataset.field] = "";
+          } else {
+            state.editValue = control.dataset.value;
+            state.editError = "";
+          }
+          render();
+        } else if (action === "launch-ad") {
+          launchAd();
+        } else if (action === "edit") {
+          var ad = currentAd();
+          state.editField = control.dataset.field;
+          state.editValue = String(ad[state.editField] == null ? "" : ad[state.editField]);
+          state.editError = "";
+          visit("edit", "ads");
+        } else if (action === "save-edit") {
+          applyEdit();
+        } else if (action === "topup") {
+          state.topupAmount = "";
+          state.topupError = "";
+          visit("topup", "ads");
+        } else if (action === "apply-topup") {
+          applyTopup();
+        } else if (action === "pause-ad") {
+          var current = currentAd();
+          if (current && (adStatus(current) === "active" || adStatus(current) === "paused")) {
+            current.status = current.status === "active" ? "paused" : "active";
+            render();
+            toast(current.status === "paused" ? "Объявление приостановлено в примере" : "Объявление возобновлено в примере");
+          }
+        } else if (action === "pause-channel") {
+          var channel = currentChannel();
+          channel.status = channel.status === "active" ? "paused" : "active";
+          render();
+          toast(channel.status === "paused" ? "Канал на паузе в примере" : "Работа канала возобновлена в примере");
+        } else if (action === "toggle-category") {
+          var settingChannel = currentChannel();
+          settingChannel.allowed[control.dataset.code] = !settingChannel.allowed[control.dataset.code];
+          render();
+          toast(categoryLabel(control.dataset.code) + (settingChannel.allowed[control.dataset.code] ? ": разрешена" : ": отключена"));
+        } else if (action === "proposal") {
+          actOnProposal(control.dataset.proposalAction);
+        } else if (action === "open-states") {
+          visit("states", state.tab);
+        } else if (action === "scenario") {
+          state.scenario = control.dataset.scenario;
+          visit("scenario", state.tab);
+        }
+      });
+
+      document.addEventListener("keydown", function (event) {
+        var radio = event.target.closest ? event.target.closest('[role="radio"][data-field]') : null;
+        var field = radio && ["category", "pricing_model"].includes(radio.dataset.field) ? radio.dataset.field : "";
+        var radios = field ? Array.from(screen.querySelectorAll('[role="radio"][data-field="' + field + '"]')) : [];
+        var currentIndex = radios.indexOf(radio);
+        var nextIndex = currentIndex;
+        var navigationKey = ["ArrowDown", "ArrowRight", "ArrowUp", "ArrowLeft", "Home", "End"].includes(event.key);
+        if (radio && radios.length) {
+          if (event.key === "ArrowDown" || event.key === "ArrowRight") nextIndex = (currentIndex + 1) % radios.length;
+          else if (event.key === "ArrowUp" || event.key === "ArrowLeft") nextIndex = (currentIndex - 1 + radios.length) % radios.length;
+          else if (event.key === "Home") nextIndex = 0;
+          else if (event.key === "End") nextIndex = radios.length - 1;
+          if (navigationKey) {
+            event.preventDefault();
+            var nextValue = radios[nextIndex].dataset.value;
+            if (state.page === "edit") {
+              state.editValue = nextValue;
+              state.editError = "";
+            } else {
+              state.draft[field] = nextValue;
+              state.fieldErrors[field] = "";
+            }
+            if (nextIndex !== currentIndex || radios[nextIndex].getAttribute("aria-checked") !== "true") render();
+            else saveState();
+            var nextRadio = screen.querySelector('[role="radio"][data-field="' + field + '"][data-value="' + nextValue + '"]');
+            if (nextRadio) nextRadio.focus({ preventScroll: true });
+            return;
+          }
+        }
+        if (event.key !== "Enter" || event.shiftKey || event.target.tagName === "TEXTAREA") return;
+        if (state.page === "create" && state.wizardStep !== "preview") {
+          event.preventDefault();
+          nextWizardStep();
+        } else if (state.page === "topup") {
+          event.preventDefault();
+          applyTopup();
+        } else if (state.page === "edit" && state.editField !== "category") {
+          event.preventDefault();
+          applyEdit();
+        }
+      });
+
       render();
-    });
-    document.addEventListener('submit', (event) => {
-      if (event.target.id !== 'create-form') return;
-      event.preventDefault();
-      const fields = new FormData(event.target);
-      const budget = Number(fields.get('budget'));
-      if (!Number.isFinite(budget) || budget < 600) return;
-      const id = Math.max(...state.ads.map((ad) => ad.id), 0) + 1;
-      state.ads.unshift({ id, title: String(fields.get('title')).trim(), body: String(fields.get('body')).trim(), budget, left: budget, category: 'Образование', status: 'active' });
-      state.tab = 'ads'; state.page = 'ads'; render(); notify('Объявление добавлено только в макет');
-    });
-    render();
+    }());
   </script>
 </body>
 </html>

@@ -2,6 +2,8 @@ export {};
 
 declare global {
   interface Window {
+    maxBridgeReady: Promise<boolean>;
+    ensureMaxBridge: () => Promise<boolean>;
     WebApp?: {
       initData?: string;
       platform?: string;
@@ -14,7 +16,7 @@ declare global {
       };
       openLink?: (url: string) => void;
       openMaxLink?: (url: string) => void;
-      getViewportSize?: () => Promise<{ height: string; width: string }> | { height: string; width: string };
+      getViewportSize?: () => Promise<{ height: string; width: string }>;
       enableClosingConfirmation?: () => void;
       disableClosingConfirmation?: () => void;
     };

@@ -35,7 +35,7 @@ export interface CategorySetting {
 }
 
 export interface ChannelDetail extends ChannelSummary {
-  action_result?: string;
+  action_result?: 'approved' | 'rejected' | 'category_blocked' | 'next' | 'no_more' | 'stale' | 'expired';
   permissions: string[];
   has_required_permissions: boolean;
   can_delete: boolean;
@@ -122,5 +122,4 @@ export type MiniPage =
   | { type: 'ad'; id: number }
   | { type: 'create' }
   | { type: 'edit'; id: number; field: 'title' | 'body' | 'url' | 'category' | 'price' }
-  | { type: 'topup'; id: number }
-  | { type: 'brand' };
+  | { type: 'topup'; id: number };

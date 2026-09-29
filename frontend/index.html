@@ -3,13 +3,62 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#f2f3f5" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f2f3f5" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#101114" />
     <meta name="color-scheme" content="light dark" />
     <title>ctxads</title>
-    <script src="https://st.max.ru/js/max-web-app.js"></script>
+    <script>
+      (() => {
+        const bridgeUrl = 'https://st.max.ru/js/max-web-app.js';
+        const timeoutMs = 7000;
+        let pendingAttempt;
+
+        const loadBridge = () => {
+          if (window.WebApp) return Promise.resolve(true);
+          if (pendingAttempt) return pendingAttempt;
+
+          pendingAttempt = new Promise((resolve) => {
+            let script;
+            let timer;
+            let settled = false;
+
+            const finish = (ready) => {
+              if (settled) return;
+              settled = true;
+              window.clearTimeout(timer);
+              if (script && !ready) script.remove();
+              resolve(Boolean(ready));
+            };
+
+            try {
+              script = document.createElement('script');
+              script.src = bridgeUrl;
+              script.async = true;
+              script.addEventListener('load', () => finish(Boolean(window.WebApp)), { once: true });
+              script.addEventListener('error', () => finish(false), { once: true });
+              timer = window.setTimeout(() => finish(false), timeoutMs);
+              document.head.append(script);
+            } catch {
+              finish(false);
+            }
+          })
+            .catch(() => false)
+            .finally(() => { pendingAttempt = undefined; });
+
+          return pendingAttempt;
+        };
+
+        window.ensureMaxBridge = loadBridge;
+        window.maxBridgeReady = loadBridge();
+      })();
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <main class="entry-status" role="status" aria-live="polite">
+        <p>Загружаем приложение…</p>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

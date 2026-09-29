@@ -1,6 +1,6 @@
 import { Button, MaxUI } from '@maxhub/max-ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ApiError, getAds, getBootstrap, getChannel, getStats, initData, mutate } from './api';
+import { ApiError, getAds, getBootstrap, getChannel, getPendingWrite, getStats, initData, mutate } from './api';
 import type {
   Ad,
   AdsData,
@@ -12,33 +12,31 @@ import type {
   StatsData,
   Tab,
 } from './types';
+import { EMPTY_DRAFT, WIZARD_VERSION, parseWizardSnapshot, wizardStorageKey } from './domain/draft';
+import type { WizardSnapshot } from './domain/draft';
+import { proposalActionMessage, proposalIsActionable, proposalStateText } from './domain/proposals';
+import { RequestCoordinator } from './domain/request-coordinator';
+import { isUncertainWrite } from './domain/idempotency';
+import { formatMoney, normalizedMoney, validateAdEditField, validateDraftField } from './domain/validation';
 import './styles.css';
 
-type Draft = {
-  title: string;
-  body: string;
-  url: string;
-  category: string;
-  pricing_model: string;
-  price: string;
-  budget: string;
-};
-
-type WizardState = { step: number | 'preview'; values: Draft };
+type Draft = typeof EMPTY_DRAFT;
+type WizardState = WizardSnapshot;
 type Recovery = { message: string; retry: () => void };
 type MutationMethod = 'POST' | 'PUT';
-
-const EMPTY_DRAFT: Draft = {
-  title: '',
-  body: '',
-  url: '',
-  category: '',
-  pricing_model: '',
-  price: '',
-  budget: '',
-};
-
-const WIZARD_STORAGE = 'ctxads.miniapp.creation.v1';
+type BusyOperation =
+  | { kind: 'consent' }
+  | { kind: 'advertiser' }
+  | { kind: 'proposal'; entityId: number; action: 'approve' | 'reject' | 'next' | 'block_cat' }
+  | { kind: 'category'; entityId: number; category: string }
+  | { kind: 'channel-pause'; entityId: number; action: 'pause' | 'resume' }
+  | { kind: 'ad-pause'; entityId: number; action: 'pause' | 'resume' }
+  | { kind: 'ad-create' }
+  | { kind: 'ad-edit'; entityId: number; field: string }
+  | { kind: 'ad-topup'; entityId: number }
+  | { kind: 'recovery'; action: 'retry' };
+type ResourceState = { status: 'idle' | 'loading' | 'ready' | 'error' | 'missing'; refreshing: boolean; error: string };
+const initialResource: ResourceState = { status: 'idle', refreshing: false, error: '' };
 const FIELD_TO_STEP: Record<string, number> = {
   title: 1,
   body: 2,
@@ -51,32 +49,28 @@ const FIELD_TO_STEP: Record<string, number> = {
 
 function readWizard(): WizardState {
   try {
-    const saved = sessionStorage.getItem(WIZARD_STORAGE);
-    if (saved) return JSON.parse(saved) as WizardState;
+    const saved = parseWizardSnapshot(sessionStorage.getItem(wizardStorageKey(initData())));
+    if (saved) return saved;
   } catch {
     // The creation flow still works if web storage is unavailable.
   }
   return { step: 1, values: { ...EMPTY_DRAFT } };
 }
 
-function money(value: string | number | null | undefined): string {
-  const amount = Number(value ?? 0);
-  if (!Number.isFinite(amount)) return '—';
-  return `${new Intl.NumberFormat('ru-RU', {
-    maximumFractionDigits: 2,
-    minimumFractionDigits: amount % 1 === 0 ? 0 : 2,
-  }).format(amount)} ₽`;
-}
+const money = formatMoney;
 
 function localTime(value: string | null): string {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  return new Intl.DateTimeFormat('ru-RU', {
+  return `${new Intl.DateTimeFormat('ru-RU', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
     timeZone: 'Europe/Moscow',
-  }).format(date);
+  }).format(date)} МСК`;
 }
 
 function count(value: number | null | undefined): string {
@@ -186,6 +180,7 @@ function Field({
     placeholder,
     disabled,
     autoFocus,
+    'data-auto-focus': autoFocus ? 'true' : undefined,
     'aria-invalid': Boolean(error),
     'aria-describedby': error ? `${id}-error` : undefined,
     onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => onChange(event.target.value),
@@ -225,32 +220,70 @@ function Skeleton() {
   );
 }
 
+function apiMessage(error: unknown, fallback: string): string {
+  return error instanceof ApiError ? error.message : fallback;
+}
+
+function proposalBusyName(action: 'approve' | 'reject' | 'next' | 'block_cat'): string {
+  switch (action) {
+    case 'approve': return 'Одобряем';
+    case 'reject': return 'Отклоняем';
+    case 'next': return 'Ищем вариант';
+    case 'block_cat': return 'Запрещаем категорию';
+  }
+}
+
+function busyOperationCopy(operation: BusyOperation | null): string {
+  if (!operation) return '';
+  switch (operation.kind) {
+    case 'consent': return 'Принимаем';
+    case 'advertiser': return 'Создаём кабинет';
+    case 'proposal': return proposalBusyName(operation.action);
+    case 'category': return `Сохраняем категорию:${operation.category}`;
+    case 'channel-pause': return operation.action === 'pause' ? 'Приостанавливаем канал' : 'Возобновляем канал';
+    case 'ad-pause': return operation.action === 'pause' ? 'Приостанавливаем объявление' : 'Возобновляем объявление';
+    case 'ad-create': return 'Запускаем';
+    case 'ad-edit': return 'Сохраняем';
+    case 'ad-topup': return 'Пополняем';
+    case 'recovery': return 'Проверяем результат';
+  }
+}
+
 function AppContent() {
   const [bootstrap, setBootstrap] = useState<Bootstrap | null>(null);
   const [adsData, setAdsData] = useState<AdsData | null>(null);
   const [statsData, setStatsData] = useState<StatsData | null>(null);
-  const [channelDetail, setChannelDetail] = useState<ChannelDetail | null>(null);
+  const [channelDetails, setChannelDetails] = useState<Record<number, ChannelDetail>>({});
+  const [bootstrapState, setBootstrapState] = useState<ResourceState>({ status: 'loading', refreshing: false, error: '' });
+  const [adsState, setAdsState] = useState<ResourceState>({ ...initialResource, status: 'loading' });
+  const [statsState, setStatsState] = useState<ResourceState>({ ...initialResource, status: 'loading' });
+  const [channelStates, setChannelStates] = useState<Record<number, ResourceState>>({});
   const [page, setPage] = useState<MiniPage>({ type: 'tabs' });
   const [tab, setTab] = useState<Tab>('channels');
   const [wizard, setWizard] = useState<WizardState>(readWizard);
+  const wizardKey = useRef(wizardStorageKey(initData())).current;
   const hasPendingWizard = Object.values(wizard.values).some((value) => value.trim().length > 0);
   const [brandName, setBrandName] = useState('');
   const [editValue, setEditValue] = useState('');
   const [topupValue, setTopupValue] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [busyAction, setBusyAction] = useState('');
+  const [busyOperation, setBusyOperation] = useState<BusyOperation | null>(null);
   const [error, setError] = useState('');
   const [authExpired, setAuthExpired] = useState(false);
+  const [authError, setAuthError] = useState('');
   const [notice, setNotice] = useState('');
   const [recovery, setRecovery] = useState<Recovery | null>(null);
   const [nextExhaustedId, setNextExhaustedId] = useState<number | null>(null);
+  const [authChecking, setAuthChecking] = useState(false);
+  const [, setExpiryPulse] = useState(0);
+  // Serialize writes so retries cannot overlap; reads and page navigation stay available.
   const busyRef = useRef(false);
   const recoveryRef = useRef<Recovery | null>(null);
   const scrollRef = useRef<Record<string, number>>({});
   const lastPageKey = useRef('tabs');
+  const currentPageKey = useRef('tabs');
+  const requests = useRef(new RequestCoordinator());
 
   const pageKey = useMemo(() => {
     if (page.type === 'tabs') return `tabs:${tab}`;
@@ -258,34 +291,69 @@ function AppContent() {
     if (page.type === 'edit' || page.type === 'topup') return `${page.type}:${page.id}`;
     return page.type;
   }, [page, tab]);
+  currentPageKey.current = pageKey;
 
-  const refresh = useCallback(async (quiet = false) => {
-    if (quiet) setRefreshing(true);
-    else setLoading(true);
+  const loadAds = useCallback(async (quiet = false) => {
+    setAdsState((state) => ({ status: state.status === 'ready' ? 'ready' : 'loading', refreshing: quiet || state.status === 'ready', error: '' }));
     try {
-      const data = await getBootstrap();
-      setBootstrap(data);
-      setError('');
-      setAuthExpired(false);
-      if (data.consented) {
-        const [adList, stats] = await Promise.all([getAds(), getStats()]);
-        setAdsData(adList);
-        setStatsData(stats);
-      } else {
-        setAdsData(null);
-        setStatsData(null);
-      }
-    } catch (cause) {
-      const message = cause instanceof ApiError ? cause.message : 'Не удалось загрузить данные.';
-      setError(message);
-      if (cause instanceof ApiError && cause.status === 401) setAuthExpired(true);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+      await requests.current.run('ads', getAds, {
+        onSuccess: (data) => { setAdsData(data); setAdsState({ status: 'ready', refreshing: false, error: '' }); },
+        onError: (cause) => {
+          const message = apiMessage(cause, 'Не удалось загрузить объявления.');
+          setAdsState((state) => ({ status: state.status === 'ready' ? 'ready' : 'error', refreshing: false, error: message }));
+          if (cause instanceof ApiError && cause.status === 401) setAuthExpired(true);
+        },
+        onSettled: () => setAdsState((state) => ({ ...state, refreshing: false })),
+      });
+    } catch { /* state carries the resource-scoped error */ }
   }, []);
 
+  const loadStats = useCallback(async (quiet = false) => {
+    setStatsState((state) => ({ status: state.status === 'ready' ? 'ready' : 'loading', refreshing: quiet || state.status === 'ready', error: '' }));
+    try {
+      await requests.current.run('stats', getStats, {
+        onSuccess: (data) => { setStatsData(data); setStatsState({ status: 'ready', refreshing: false, error: '' }); },
+        onError: (cause) => {
+          const message = apiMessage(cause, 'Не удалось загрузить статистику.');
+          setStatsState((state) => ({ status: state.status === 'ready' ? 'ready' : 'error', refreshing: false, error: message }));
+          if (cause instanceof ApiError && cause.status === 401) setAuthExpired(true);
+        },
+        onSettled: () => setStatsState((state) => ({ ...state, refreshing: false })),
+      });
+    } catch { /* state carries the resource-scoped error */ }
+  }, []);
+
+  const refresh = useCallback(async (quiet = false) => {
+    setBootstrapState((state) => ({ status: state.status === 'ready' ? 'ready' : 'loading', refreshing: quiet || state.status === 'ready', error: '' }));
+    try {
+      const data = await requests.current.run('bootstrap', getBootstrap, {
+        onSuccess: (value) => {
+          setBootstrap(value);
+          setBootstrapState({ status: 'ready', refreshing: false, error: '' });
+          setError('');
+          setAuthExpired(false);
+          setAuthError('');
+          if (!value.consented) {
+            setAdsData(null);
+            setStatsData(null);
+            setAdsState({ status: 'idle', refreshing: false, error: '' });
+            setStatsState({ status: 'idle', refreshing: false, error: '' });
+          }
+        },
+        onError: (cause) => {
+          const message = apiMessage(cause, 'Не удалось загрузить данные.');
+          setBootstrapState((state) => ({ status: state.status === 'ready' ? 'ready' : 'error', refreshing: false, error: message }));
+          if (cause instanceof ApiError && cause.status === 401) setAuthExpired(true);
+        },
+        onSettled: () => setBootstrapState((state) => ({ ...state, refreshing: false })),
+      });
+      if (data.consented) await Promise.all([loadAds(quiet), loadStats(quiet)]);
+    } catch { /* bootstrap state carries the error */ }
+  }, [loadAds, loadStats]);
+
   useEffect(() => { void refresh(false); }, [refresh]);
+
+  useEffect(() => { void restorePendingRecovery(); }, []);
 
   useEffect(() => {
     const current = window.WebApp;
@@ -311,7 +379,7 @@ function AppContent() {
       if (!size) return;
       const height = Number(size.height);
       if (Number.isFinite(height) && height > 0) {
-        document.documentElement.style.setProperty('--max-viewport-height', `${height}px`);
+        document.documentElement.style.setProperty('--viewport-height', `${height}px`);
       }
     }).catch(() => undefined);
     return () => {
@@ -343,6 +411,25 @@ function AppContent() {
   }, [pageKey]);
 
   useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      const target = document.querySelector<HTMLElement>('[data-auto-focus="true"]')
+        ?? document.querySelector<HTMLElement>('[data-route-heading]');
+      target?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [pageKey, wizard.step]);
+
+  useEffect(() => {
+    if (!Object.values(fieldErrors).some(Boolean)) return undefined;
+    const frame = requestAnimationFrame(() => {
+      const target = document.querySelector<HTMLElement>('[aria-invalid="true"] [role="radio"]')
+        ?? document.querySelector<HTMLElement>('[aria-invalid="true"]');
+      target?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [fieldErrors, pageKey]);
+
+  useEffect(() => {
     if (page.type === 'create' && hasPendingWizard) window.WebApp?.enableClosingConfirmation?.();
     else window.WebApp?.disableClosingConfirmation?.();
     return () => window.WebApp?.disableClosingConfirmation?.();
@@ -353,12 +440,26 @@ function AppContent() {
     const timer = window.setInterval(() => {
       if (document.visibilityState === 'visible') void loadChannel(page.id, true);
     }, 20_000);
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearInterval(timer);
+      requests.current.invalidate(`channel:${page.id}`);
+    };
   }, [page]);
 
   useEffect(() => {
-    try { sessionStorage.setItem(WIZARD_STORAGE, JSON.stringify(wizard)); } catch { /* optional */ }
-  }, [wizard]);
+    if (page.type !== 'channel') return undefined;
+    const proposal = channelDetails[page.id]?.proposal;
+    const expiry = proposal ? Date.parse(proposal.expires_at) : Number.NaN;
+    if (!Number.isFinite(expiry) || expiry <= Date.now()) return undefined;
+    const timer = window.setTimeout(() => setExpiryPulse((pulse) => pulse + 1), expiry - Date.now() + 10);
+    return () => window.clearTimeout(timer);
+  }, [page, channelDetails]);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(wizardKey, JSON.stringify({ version: WIZARD_VERSION, wizard }));
+    } catch { /* optional */ }
+  }, [wizard, wizardKey]);
 
   useEffect(() => {
     if (!notice) return undefined;
@@ -367,25 +468,71 @@ function AppContent() {
   }, [notice]);
 
   async function loadChannel(id: number, quiet = false) {
-    if (!quiet) setRefreshing(true);
+    setChannelStates((current) => ({
+      ...current,
+      [id]: { status: channelDetails[id] ? 'ready' : 'loading', refreshing: quiet || Boolean(channelDetails[id]), error: '' },
+    }));
     try {
-      const detail = await getChannel(id);
-      setChannelDetail(detail);
-      setBootstrap((current) => current ? {
-        ...current,
-        channels: current.channels.map((item) => item.chat_id === id ? {
-          ...item,
-          title: detail.title,
-          status: detail.status,
-          subscribers: detail.subscribers,
-          proposal: detail.proposal,
-        } : item),
-      } : current);
-      setError('');
-    } catch (cause) {
-      if (!quiet) setError(cause instanceof ApiError ? cause.message : 'Не удалось обновить канал.');
+      await requests.current.run(`channel:${id}`, (signal) => getChannel(id, signal), {
+        onSuccess: (detail) => {
+          setChannelDetails((current) => ({ ...current, [id]: detail }));
+          updateChannelSummary(detail);
+          setChannelStates((current) => ({ ...current, [id]: { status: 'ready', refreshing: false, error: '' } }));
+        },
+        onError: (cause) => {
+          const message = apiMessage(cause, 'Не удалось обновить канал.');
+          const missing = cause instanceof ApiError && cause.status === 404;
+          if (missing) {
+            setChannelDetails((current) => {
+              const next = { ...current };
+              delete next[id];
+              return next;
+            });
+            setBootstrap((current) => current ? {
+              ...current,
+              channels: current.channels.filter((item) => item.chat_id !== id),
+            } : current);
+          }
+          setChannelStates((current) => ({
+            ...current,
+            [id]: { status: missing ? 'missing' : channelDetails[id] ? 'ready' : 'error', refreshing: false, error: message },
+          }));
+          if (cause instanceof ApiError && cause.status === 401) setAuthExpired(true);
+        },
+        onSettled: () => setChannelStates((current) => current[id]
+          ? { ...current, [id]: { ...current[id], refreshing: false } }
+          : current),
+      });
+    } catch { /* state carries the channel-scoped error */ }
+  }
+
+  async function recoverMaxBridge() {
+    const bridge = window as Window & { ensureMaxBridge?: () => Promise<boolean> };
+    const previousInitData = initData();
+    setAuthChecking(true);
+    setAuthError('');
+    try {
+      const restored = await bridge.ensureMaxBridge?.();
+      if (!restored) {
+        setAuthError('MAX пока не подтвердил подключение. Проверьте сеть и попробуйте ещё раз.');
+        return;
+      }
+      const currentInitData = initData();
+      if (!currentInitData) {
+        setAuthError('Подключение MAX восстановлено, но подписанные данные входа не получены. Закройте и заново откройте мини-приложение в MAX.');
+        return;
+      }
+      if (authExpired && currentInitData === previousInitData) {
+        setAuthError('Данные входа истекли. Подключение MAX восстановлено, но оно не обновляет подписанные данные. Закройте и заново откройте мини-приложение в MAX.');
+        return;
+      }
+      setAuthExpired(false);
+      await refresh(false);
+      await restorePendingRecovery();
+    } catch {
+      setAuthError('Не удалось восстановить подключение к MAX. Попробуйте ещё раз.');
     } finally {
-      if (!quiet) setRefreshing(false);
+      setAuthChecking(false);
     }
   }
 
@@ -395,7 +542,7 @@ function AppContent() {
     setFieldErrors({});
     setPage(next);
     if (next.type === 'channel') void loadChannel(next.id);
-    if (next.type === 'ad') void getAds().then(setAdsData).catch(() => undefined);
+    if (next.type === 'ad') void loadAds(true);
   }
 
   function goBack() {
@@ -419,7 +566,15 @@ function AppContent() {
     } else if (page.type === 'ad') {
       setTab('ads');
       setPage({ type: 'tabs' });
-    } else if (page.type === 'edit' || page.type === 'topup') {
+    } else if (page.type === 'edit') {
+      const ad = adsData?.ads.find((item) => item.id === page.id);
+      if (ad) {
+        const currentValue = page.field === 'price' ? normalizedMoney(editValue) : editValue.trim();
+        const savedValue = page.field === 'price' ? normalizedMoney(ad.price) : String(ad[page.field]).trim();
+        if (currentValue !== savedValue && !window.confirm('Отменить несохранённые изменения?')) return;
+      }
+      setPage({ type: 'ad', id: page.id });
+    } else if (page.type === 'topup') {
       setPage({ type: 'ad', id: page.id });
     } else {
       setTab('ads');
@@ -432,23 +587,26 @@ function AppContent() {
     setTab(next);
     setPage({ type: 'tabs' });
     setError('');
-    if (next === 'ads') void getAds().then(setAdsData).catch(() => undefined);
-    if (next === 'stats') void getStats().then(setStatsData).catch(() => undefined);
+    if (next === 'ads') void loadAds(true);
+    if (next === 'stats') void loadStats(true);
   }
 
   async function runMutation<T>(
     path: string,
     body: unknown,
-    onSuccess: (data: T) => void,
+    onSuccess: (data: T, stillOnOrigin: () => boolean) => void,
     successText: string,
     method: MutationMethod = 'POST',
     retry = false,
-    actionLabel = 'Сохраняем',
+    operation: BusyOperation = { kind: 'recovery', action: 'retry' },
+    invalidateKeys: string[] = [],
   ) {
     if (busyRef.current || (recoveryRef.current && !retry)) return;
     busyRef.current = true;
+    const originPage = currentPageKey.current;
+    const stillOnOrigin = () => currentPageKey.current === originPage;
     setBusy(true);
-    setBusyAction(actionLabel);
+    setBusyOperation(operation);
     setError('');
     setFieldErrors({});
     let committed = false;
@@ -457,8 +615,14 @@ function AppContent() {
       committed = true;
       recoveryRef.current = null;
       setRecovery(null);
-      await onSuccess(data);
-      if (successText) setNotice(successText);
+      invalidateKeys.forEach((key) => {
+        requests.current.invalidate(key);
+        if (key === 'bootstrap') setBootstrapState((state) => ({ ...state, status: bootstrap ? 'ready' : state.status, refreshing: false }));
+        if (key === 'ads') setAdsState((state) => ({ ...state, status: adsData ? 'ready' : state.status, refreshing: false }));
+        if (key === 'stats') setStatsState((state) => ({ ...state, status: statsData ? 'ready' : state.status, refreshing: false }));
+      });
+      await onSuccess(data, stillOnOrigin);
+      if (successText && stillOnOrigin()) setNotice(successText);
     } catch (cause) {
       if (committed) {
         setError('Действие выполнено, но не удалось обновить экран. Обновите данные.');
@@ -472,28 +636,56 @@ function AppContent() {
         }
       }
       if (apiError.status === 401) setAuthExpired(true);
-      if (apiError.status === 0 || apiError.status >= 500 || apiError.code === 'mutation_in_progress') {
-        const retryAction = () => void runMutation<T>(path, body, onSuccess, successText, method, true, actionLabel);
+      if (isUncertainWrite(apiError)) {
+        const retryAction = () => void runMutation<T>(path, body, onSuccess, successText, method, true, operation, invalidateKeys);
         const recover: Recovery = { message: 'Результат пока не подтверждён. Проверьте это же действие ещё раз.', retry: retryAction };
         recoveryRef.current = recover;
         setRecovery(recover);
       } else {
-        setError(apiError.message);
+        if (retry) {
+          recoveryRef.current = null;
+          setRecovery(null);
+        }
+        if (!apiError.field) setError(apiError.message);
       }
     } finally {
       busyRef.current = false;
       setBusy(false);
-      setBusyAction('');
+      setBusyOperation(null);
     }
   }
 
-  function dismissRecovery() {
-    recoveryRef.current = null;
-    setRecovery(null);
+  async function restorePendingRecovery() {
+    const pending = await getPendingWrite();
+    if (!pending || recoveryRef.current) return;
+    const retry = () => void runMutation<unknown>(
+      pending.path,
+      pending.body,
+      (data) => {
+        const result = data as { action_result?: string; chat_id?: number } | null;
+        if (typeof result?.chat_id === 'number') void loadChannel(result.chat_id, true);
+        void refresh(true);
+        void loadAds(true);
+        void loadStats(true);
+        setNotice(result?.action_result
+          ? proposalActionMessage(result.action_result)
+          : 'Действие подтверждено. Данные обновляются.');
+      },
+      '',
+      pending.method,
+      true,
+      { kind: 'recovery', action: 'retry' },
+      ['bootstrap', 'ads', 'stats', ...(page.type === 'channel' ? [`channel:${page.id}`] : [])],
+    );
+    const restored: Recovery = {
+      message: 'Предыдущее действие ещё не подтверждено. Повторите проверку, чтобы получить его результат.',
+      retry,
+    };
+    recoveryRef.current = restored;
+    setRecovery(restored);
   }
 
-  function applyChannel(data: ChannelDetail) {
-    setChannelDetail(data);
+  function updateChannelSummary(data: ChannelDetail) {
     setBootstrap((current) => current ? {
       ...current,
       channels: current.channels.map((item) => item.chat_id === data.chat_id ? {
@@ -504,6 +696,12 @@ function AppContent() {
         proposal: data.proposal,
       } : item),
     } : current);
+  }
+
+  function applyChannel(data: ChannelDetail) {
+    setChannelDetails((current) => ({ ...current, [data.chat_id]: data }));
+    updateChannelSummary(data);
+    setChannelStates((current) => ({ ...current, [data.chat_id]: { status: 'ready', refreshing: false, error: '' } }));
   }
 
   function applyAd(data: Ad) {
@@ -520,15 +718,38 @@ function AppContent() {
     } : current);
   }
 
-  const activeChannel = page.type === 'channel' && channelDetail?.chat_id === page.id ? channelDetail : null;
+  const activeChannel = page.type === 'channel' ? channelDetails[page.id] ?? null : null;
   const activeAd = page.type === 'ad' ? adsData?.ads.find((ad) => ad.id === page.id) ?? null : null;
   const companyName = adsData?.advertiser?.name ?? bootstrap?.advertiser?.name ?? '';
+
+  function returnToAds() {
+    setTab('ads');
+    setPage({ type: 'tabs' });
+  }
+
+  function adRouteFallback(title: string): React.ReactNode {
+    if (!adsData && (adsState.status === 'loading' || adsState.status === 'idle')) return <Skeleton />;
+    if (!adsData && adsState.error) {
+      return <><PageHeader title={title} onBack={returnToAds} /><ResourceMessage title="Не удалось загрузить объявление" error={adsState.error} loading={adsState.refreshing} onRetry={() => void loadAds(true)} /><Button variant="secondary" size="large" stretched onClick={returnToAds}>К объявлениям</Button></>;
+    }
+    return (
+      <>
+        <PageHeader title={title} onBack={returnToAds} />
+        <section className="empty-state compact-empty">
+          <h2>Объявление недоступно</h2>
+          <p>В текущем списке его нет. Вернитесь к объявлениям и обновите список.</p>
+          <Button variant="secondary" size="large" stretched onClick={returnToAds}>К объявлениям</Button>
+        </section>
+      </>
+    );
+  }
+
   async function acceptConsent() {
     await runMutation<{ accepted: boolean }>(
       '/api/miniapp/consent', { accepted: true },
       () => { void refresh(true); },
       'Условия приняты',
-      'POST', false, 'Принимаем',
+      'POST', false, { kind: 'consent' }, ['bootstrap'],
     );
   }
 
@@ -543,8 +764,9 @@ function AppContent() {
       1: 'title', 2: 'body', 3: 'url', 4: 'category', 5: 'pricing_model', 6: 'price', 7: 'budget',
     };
     const field = keyByStep[wizard.step];
-    if (!wizard.values[field].trim()) {
-      setFieldErrors({ [field]: 'Заполните это поле, чтобы продолжить.' });
+    const message = bootstrap ? validateDraftField(field, wizard.values, bootstrap) : 'Данные сервиса ещё не загружены.';
+    if (message) {
+      setFieldErrors({ [field]: message });
       return;
     }
     if (wizard.step === 7) setWizard((current) => ({ ...current, step: 'preview' }));
@@ -555,15 +777,28 @@ function AppContent() {
     if (hasPendingWizard && !window.confirm('Отменить создание объявления и очистить введённые данные?')) return;
     setWizard({ step: 1, values: { ...EMPTY_DRAFT } });
     setFieldErrors({});
-    try { sessionStorage.removeItem(WIZARD_STORAGE); } catch { /* optional */ }
+    try { sessionStorage.removeItem(wizardKey); } catch { /* optional */ }
     setTab('ads');
     setPage({ type: 'tabs' });
   }
 
   function createAd() {
-    runMutation<Ad>('/api/miniapp/ads', wizard.values, (created) => {
-      try { sessionStorage.removeItem(WIZARD_STORAGE); } catch { /* optional */ }
-      setWizard({ step: 1, values: { ...EMPTY_DRAFT } });
+    if (!bootstrap) return;
+    const errors: Record<string, string> = {};
+    (Object.keys(wizard.values) as Array<keyof Draft>).forEach((field) => {
+      const message = validateDraftField(field, wizard.values, bootstrap);
+      if (message) errors[field] = message;
+    });
+    if (Object.keys(errors).length) {
+      setFieldErrors(errors);
+      const firstInvalid = (Object.keys(wizard.values) as Array<keyof Draft>).find((field) => errors[field]);
+      if (firstInvalid) setWizard((current) => ({ ...current, step: FIELD_TO_STEP[firstInvalid] }));
+      return;
+    }
+    const price = normalizedMoney(wizard.values.price);
+    const budget = normalizedMoney(wizard.values.budget);
+    if (!price || !budget) return;
+    runMutation<Ad>('/api/miniapp/ads', { ...wizard.values, price, budget }, (created, stillOnOrigin) => {
       setAdsData((current) => current ? {
         ...current,
         ads: [created, ...current.ads.filter((ad) => ad.id !== created.id)],
@@ -572,9 +807,12 @@ function AppContent() {
         ...current,
         advertiser: current.advertiser ? { ...current.advertiser, ad_count: current.advertiser.ad_count + 1 } : current.advertiser,
       } : current);
-      setPage({ type: 'ad', id: created.id });
-      setTab('ads');
-    }, 'Объявление запущено и участвует в подборе', 'POST', false, 'Запускаем');
+      setWizard({ step: 1, values: { ...EMPTY_DRAFT } });
+      if (stillOnOrigin()) {
+        setPage({ type: 'ad', id: created.id });
+        setTab('ads');
+      }
+    }, 'Объявление запущено и участвует в подборе', 'POST', false, { kind: 'ad-create' }, ['ads', 'stats', 'bootstrap']);
   }
 
   const recoveryBanner = recovery ? (
@@ -582,9 +820,8 @@ function AppContent() {
       <p>{recovery.message}</p>
       <div className="recovery-actions">
         <Button variant="secondary" size="medium" loading={busy} disabled={busy} onClick={recovery.retry}>
-          {busy ? 'Проверяем…' : 'Проверить результат'}
+          {busy ? `${busyOperationCopy(busyOperation)}…` : 'Проверить результат'}
         </Button>
-        <button className="plain-action" onClick={dismissRecovery} disabled={busy}>Позже</button>
       </div>
     </div>
   ) : null;
@@ -596,7 +833,8 @@ function AppContent() {
           <div className="auth-content">
             <h1>Откройте в MAX</h1>
             <p>Вход в сервис подтверждается MAX при запуске мини-приложения.</p>
-            <Button variant="secondary" size="large" stretched onClick={() => window.location.reload()}>
+            {authError ? <p role="alert">{authError}</p> : null}
+            <Button variant="secondary" size="large" stretched loading={authChecking} disabled={authChecking} onClick={() => void recoverMaxBridge()}>
               Проверить подключение
             </Button>
           </div>
@@ -605,8 +843,28 @@ function AppContent() {
     );
   }
 
-  if (loading && !bootstrap) {
+  if (bootstrap === null && bootstrapState.status === 'loading') {
     return <MaxUI><div className="max-app"><Skeleton /></div></MaxUI>;
+  }
+
+  if (bootstrap === null) {
+    return (
+      <MaxUI>
+        <div className="max-app auth-screen">
+          <div className="auth-content">
+            <h1>Не удалось загрузить данные</h1>
+            <p role="alert">{bootstrapState.error || 'Проверьте подключение и повторите запрос.'}</p>
+            {authError ? <p role="alert">{authError}</p> : null}
+            <Button variant="primary" size="large" stretched loading={bootstrapState.refreshing || authChecking} disabled={bootstrapState.refreshing || authChecking} onClick={() => void refresh(false)}>
+              Повторить загрузку
+            </Button>
+            <Button variant="secondary" size="large" stretched loading={authChecking} disabled={authChecking} onClick={() => void recoverMaxBridge()}>
+              Проверить подключение MAX
+            </Button>
+          </div>
+        </div>
+      </MaxUI>
+    );
   }
 
   if (authExpired) {
@@ -615,9 +873,10 @@ function AppContent() {
         <div className="max-app auth-screen">
           <div className="auth-content">
             <h1>Сессия завершилась</h1>
-            <p>Данные MAX устарели. Закройте это окно и откройте мини-приложение ещё раз из чата с ботом.</p>
-            <Button variant="primary" size="large" stretched onClick={() => window.location.reload()}>
-              Обновить
+            <p>Данные входа истекли. Подключение MAX само по себе их не обновляет. Закройте и заново откройте мини-приложение в MAX.</p>
+            {authError ? <p role="alert">{authError}</p> : null}
+            <Button variant="primary" size="large" stretched loading={authChecking} disabled={authChecking} onClick={() => void recoverMaxBridge()}>
+              Проверить подключение
             </Button>
           </div>
         </div>
@@ -625,18 +884,18 @@ function AppContent() {
     );
   }
 
-  if (!bootstrap?.consented) {
+  if (bootstrap.consented === false) {
     return (
       <MaxUI>
         <div className="max-app consent-screen">
           <header className="page-heading"><h1>Добро пожаловать</h1></header>
           <p className="intro-copy">Перед началом примите условия сервиса.</p>
-          <section className="surface consent-copy"><p>{bootstrap?.consent_text}</p></section>
+          <section className="surface consent-copy"><p>{bootstrap.consent_text || 'Примите условия сервиса, чтобы продолжить.'}</p></section>
           {error ? <div className="inline-error" role="alert">{error}</div> : null}
           {recoveryBanner}
           <div className="screen-action">
             <Button variant="primary" size="large" stretched loading={busy} disabled={busy || Boolean(recovery)} onClick={() => void acceptConsent()}>
-              Принимаю условия
+              {busyOperation?.kind === 'consent' ? 'Принимаем…' : 'Принимаю условия'}
             </Button>
           </div>
           {notice ? <div className="toast" role="status">{notice}</div> : null}
@@ -657,7 +916,7 @@ function AppContent() {
               <h2>Подключите канал</h2>
               <p>Добавьте бота администратором канала с правами читать все сообщения и публиковать посты. Канал появится здесь после проверки.</p>
               <p className="muted-copy">По желанию включите право удалять сообщения: тогда реклама будет удаляться через 48 часов.</p>
-              <div className="empty-help"><span>Настройки канала</span><Icon name="chevron" /></div>
+              <p className="empty-help">В MAX откройте настройки канала → «Администраторы» и добавьте туда бота.</p>
             </section>
           ) : (
             <section className="list-group" aria-label="Мои каналы">
@@ -689,31 +948,47 @@ function AppContent() {
     if (tab === 'ads') {
       const advertiser = adsData?.advertiser;
       const ads = adsData?.ads ?? [];
+      if (!adsData) {
+        return (
+          <>
+            <PageHeading title="Объявления" subtitle="Кабинет рекламодателя" />
+            <ResourceMessage
+              title={adsState.status === 'loading' ? 'Загружаем объявления' : 'Не удалось загрузить объявления'}
+              error={adsState.error}
+              loading={adsState.status === 'loading' || adsState.refreshing}
+              onRetry={() => void loadAds(false)}
+            />
+          </>
+        );
+      }
       if (!advertiser && !bootstrap?.advertiser.exists) {
         return (
           <>
             <PageHeading title="Объявления" subtitle="Кабинет рекламодателя" />
-            <section className="surface form-surface">
+            <form className="surface form-surface" onSubmit={(event) => {
+              event.preventDefault();
+              const name = brandName.trim();
+              if (!name) { setFieldErrors({ name: 'Укажите название компании или бренда.' }); return; }
+              const maxName = bootstrap?.limits.company_name ?? 100;
+              if (name.length > maxName) { setFieldErrors({ name: `Не больше ${maxName} символов.` }); return; }
+              void runMutation<{ name: string }>('/api/miniapp/advertiser', { name }, async (data) => {
+                setAdsData({ advertiser: { name: data.name }, ads: [] });
+                setBootstrap((current) => current ? { ...current, advertiser: { exists: true, name: data.name, ad_count: 0 } } : current);
+                setBrandName('');
+              }, 'Название сохранено', 'POST', false, { kind: 'advertiser' }, ['ads', 'stats', 'bootstrap']);
+            }}>
               <h2>Название компании или бренда</h2>
               <p className="muted-copy">Это название появится в маркировке рекламы.</p>
-              <Field label="Компания или бренд" value={brandName} onChange={setBrandName} maxLength={bootstrap?.limits.company_name} error={fieldErrors.name} autoComplete="organization" disabled={busy || Boolean(recovery)} />
-              {error ? <div className="inline-error" role="alert">{error}</div> : null}
-              <Button variant="primary" size="large" stretched loading={busy} disabled={busy || Boolean(recovery)} onClick={() => {
-                if (!brandName.trim()) { setFieldErrors({ name: 'Укажите название компании или бренда.' }); return; }
-                runMutation<{ name: string }>('/api/miniapp/advertiser', { name: brandName }, async (data) => {
-                  setAdsData({ advertiser: { name: data.name }, ads: [] });
-                  setBootstrap((current) => current ? { ...current, advertiser: { exists: true, name: data.name, ad_count: 0 } } : current);
-                  setBrandName('');
-                  setPage({ type: 'tabs' });
-                }, 'Название сохранено', 'POST', false, 'Сохраняем');
-              }}>Продолжить</Button>
-            </section>
+              <Field label="Компания или бренд" value={brandName} onChange={(value) => { setBrandName(value); setFieldErrors((current) => ({ ...current, name: '' })); }} maxLength={bootstrap?.limits.company_name} error={fieldErrors.name} autoComplete="organization" disabled={busy || Boolean(recovery)} />
+              <Button type="submit" variant="primary" size="large" stretched loading={busyOperation?.kind === 'advertiser'} disabled={busy || Boolean(recovery)}>{busyOperation?.kind === 'advertiser' ? 'Создаём кабинет…' : 'Продолжить'}</Button>
+            </form>
           </>
         );
       }
       return (
         <>
           <PageHeading title="Объявления" subtitle={advertiser?.name ?? bootstrap?.advertiser.name ?? 'Кабинет рекламодателя'} />
+          {adsState.error ? <div className="inline-error" role="alert">{adsState.error} <button className="plain-action" onClick={() => void loadAds(true)}>Повторить</button></div> : null}
           {ads.length === 0 ? (
             <section className="empty-state compact-empty">
               <h2>Объявлений пока нет</h2>
@@ -746,20 +1021,49 @@ function AppContent() {
       );
     }
 
-    return <StatsScreen data={statsData} />;
+    return <StatsScreen data={statsData} state={statsState} onRetry={() => void loadStats(false)} />;
   };
 
   const renderChannelPage = () => {
     const id = page.type === 'channel' ? page.id : 0;
     const channel = activeChannel;
-    if (!channel) return <Skeleton />;
+    const channelState = channelStates[id] ?? initialResource;
+    if (!channel) {
+      if (channelState.status === 'missing') {
+        return (
+          <>
+            <PageHeader title="Канал недоступен" onBack={goBack} />
+            <section className="empty-state compact-empty">
+              <h2>Канал больше не доступен</h2>
+              <p>Он мог быть отключён или удалён из кабинета. Обновите данные или вернитесь к списку каналов.</p>
+              <div className="screen-action">
+                <Button variant="secondary" size="large" stretched loading={channelState.refreshing} disabled={channelState.refreshing} onClick={() => void loadChannel(id)}>Повторить загрузку</Button>
+                <Button variant="secondary" size="large" stretched onClick={goBack}>К каналам</Button>
+              </div>
+            </section>
+          </>
+        );
+      }
+      return channelState.status === 'error' ? (
+        <>
+          <PageHeader title="Канал" onBack={goBack} />
+          <ResourceMessage title="Не удалось загрузить канал" error={channelState.error} loading={false} onRetry={() => void loadChannel(id)} />
+        </>
+      ) : <Skeleton />;
+    }
     const cstate = channelStatus(channel.status);
     const proposal = channel.proposal;
-    const latestProposalState = proposal ? proposalStatus(proposal.status) : null;
+    const proposalActionable = proposal ? proposalIsActionable(proposal) : false;
+    const latestProposalState = proposal
+      ? (proposal.status === 'pending' && !proposalActionable
+        ? { label: Number.isFinite(Date.parse(proposal.expires_at)) && Date.parse(proposal.expires_at) <= Date.now() ? 'Срок истёк' : 'Недоступно', tone: 'muted' }
+        : proposalStatus(proposal.status))
+      : null;
     const nextExhausted = proposal?.id === nextExhaustedId;
     return (
       <>
-        <PageHeader title={channel.title} onBack={goBack} refreshing={refreshing} onRefresh={() => void loadChannel(id)} />
+        <PageHeader title={channel.title} onBack={goBack} refreshing={channelState.refreshing} onRefresh={() => void loadChannel(id, true)} />
+        {channelState.error ? <div className="inline-error" role="alert">Не удалось обновить канал: {channelState.error} <button className="plain-action" onClick={() => void loadChannel(id, true)}>Повторить</button></div> : null}
         <div className="detail-meta"><Status {...cstate} /><span>{count(channel.subscribers)} подписчиков</span></div>
         {channel.status === 'insufficient_rights' ? (
           <section className="notice-panel warning-panel">
@@ -778,28 +1082,29 @@ function AppContent() {
               <div><h2>{proposal.status === 'pending' ? 'Предложение рекламы' : 'Последнее предложение'}</h2><span>{channel.title}</span></div>
               {latestProposalState ? <Status {...latestProposalState} /> : null}
             </div>
-            {proposal.status === 'pending' ? (
+            {proposalActionable ? (
               <ProposalCard
                 proposal={proposal}
                 busy={busy}
-                busyAction={busyAction}
+                busyOperation={busyOperation}
                 recovering={Boolean(recovery)}
                 nextDisabled={!proposal.next_available || nextExhausted}
+                nextUnavailableReason={nextExhausted
+                  ? 'Подходящих альтернатив больше нет.'
+                  : !proposal.next_available ? 'Сейчас других вариантов нет.' : ''}
                 onAction={(action) => {
                   runMutation<ChannelDetail>(`/api/miniapp/proposals/${proposal.id}/action`, { action }, (data) => {
                     if (data.action_result === 'no_more') setNextExhaustedId(proposal.id);
                     if (data.proposal?.id !== proposal.id) setNextExhaustedId(null);
                     applyChannel(data);
-                  }, action === 'approve' ? 'Одобрено. Публикация запланирована.' : action === 'next' ? 'Предложение обновлено.' : action === 'block_cat' ? 'Категория больше не предлагается.' : 'Предложение отклонено.', 'POST', false, action === 'next' ? 'Ищем вариант' : 'Сохраняем');
+                    if (currentPageKey.current === `channel:${data.chat_id}`) setNotice(proposalActionMessage(data.action_result));
+                  }, '', 'POST', false, { kind: 'proposal', entityId: proposal.id, action }, [`channel:${id}`, 'bootstrap']);
                 }}
               />
             ) : (
               <div className="state-copy">
                 {proposal.status === 'approved' ? <p>Реклама пока не опубликована. Плановое время: {localTime(proposal.publish_at)}.</p> : null}
-                {proposal.status === 'published' ? <p>Реклама опубликована в канале.</p> : null}
-                {proposal.status === 'expired' ? <p>Предложение больше нельзя выполнить. Новые предложения появятся здесь после публикации подходящего поста.</p> : null}
-                {proposal.status === 'rejected' ? <p>Это объявление отклонено.</p> : null}
-                {proposal.status === 'cancelled' ? <p>Предложение отменено, например если канал отключили.</p> : null}
+                {proposal.status !== 'approved' ? <p>{proposalStateText(proposal)}</p> : null}
               </div>
             )}
           </section>
@@ -819,14 +1124,14 @@ function AppContent() {
                 disabled={busy || Boolean(recovery)}
                 onClick={() => runMutation<ChannelDetail>(`/api/miniapp/channels/${channel.chat_id}/category`, {
                   category: category.code, allowed: !category.allowed,
-                }, applyChannel, `${category.label}: ${category.allowed ? 'отключена' : 'разрешена'}`, 'POST', false, 'Сохраняем')}
+                }, applyChannel, `${category.label}: ${category.allowed ? 'отключена' : 'разрешена'}`, 'POST', false, { kind: 'category', entityId: channel.chat_id, category: category.code }, [`channel:${channel.chat_id}`, 'bootstrap'])}
               >
                 <span className="category-name">{category.label}{category.regulated ? <span className="regulated-mark" aria-label="Регулируемая категория"> ⚖</span> : null}</span>
                 <span className={`switch ${category.allowed ? 'switch-on' : ''}`}><span /></span>
               </button>
             ))}
           </div>
-          {busy && busyAction === 'Сохраняем' ? <p className="save-state" role="status">Сохраняем настройку…</p> : null}
+          {busyOperation?.kind === 'category' && busyOperation.entityId === channel.chat_id ? <p className="save-state" role="status">Сохраняем настройку…</p> : null}
           <p className="settings-hint">Регулируемые категории выключены, пока вы их не разрешите.</p>
           <div className="retention-line">
             <strong>Автоудаление рекламы</strong>
@@ -834,15 +1139,15 @@ function AppContent() {
           </div>
           {channel.status === 'active' || channel.status === 'paused' ? (
             <Button
-              variant={channel.status === 'paused' ? 'secondary' : 'destructive'}
+              variant="secondary"
               size="large"
               stretched
-              loading={busyAction.includes('Приостаниваем') || busyAction.includes('Возобновляем')}
+              loading={busyOperation?.kind === 'channel-pause' && busyOperation.entityId === channel.chat_id}
               disabled={busy || Boolean(recovery)}
               onClick={() => runMutation<ChannelDetail>(`/api/miniapp/channels/${channel.chat_id}/pause`, {
                 paused: channel.status === 'active',
-              }, applyChannel, channel.status === 'active' ? 'Канал приостановлен' : 'Работа канала возобновлена', 'POST', false, channel.status === 'active' ? 'Приостаниваем' : 'Возобновляем')}
-            >{channel.status === 'active' ? 'Приостановить канал' : 'Возобновить канал'}</Button>
+              }, applyChannel, channel.status === 'active' ? 'Канал приостановлен' : 'Работа канала возобновлена', 'POST', false, { kind: 'channel-pause', entityId: channel.chat_id, action: channel.status === 'active' ? 'pause' : 'resume' }, [`channel:${channel.chat_id}`, 'bootstrap'])}
+            >{busyOperation?.kind === 'channel-pause' && busyOperation.entityId === channel.chat_id ? 'Сохраняем…' : channel.status === 'active' ? 'Приостановить канал' : 'Возобновить канал'}</Button>
           ) : null}
         </section>
       </>
@@ -851,28 +1156,31 @@ function AppContent() {
 
   const renderAdPage = () => {
     const ad = activeAd;
-    if (!ad) return <Skeleton />;
+    if (!ad) {
+      return adRouteFallback('Объявление');
+    }
     const status = adStatus(ad.status);
     return (
       <>
-        <PageHeader title={ad.title} onBack={goBack} refreshing={refreshing} onRefresh={() => void getAds().then(setAdsData).catch(() => setError('Не удалось обновить объявление.'))} />
+        <PageHeader title={ad.title} onBack={goBack} refreshing={adsState.refreshing} onRefresh={() => void loadAds(true)} />
+        {adsState.error ? <div className="inline-error" role="alert">Не удалось обновить объявление: {adsState.error} <button className="plain-action" onClick={() => void loadAds(true)}>Повторить</button></div> : null}
         <div className="detail-meta"><Status {...status} /><span>Остаток {money(ad.budget_left)}</span></div>
         <section className="ad-detail-section">
-          <div className="editable-row"><div><span className="detail-label">Заголовок</span><h2>{ad.title}</h2></div><Button variant="ghost" size="small" disabled={Boolean(recovery)} onClick={() => { setEditValue(ad.title); openPage({ type: 'edit', id: ad.id, field: 'title' }); }}>Изменить</Button></div>
-          <div className="editable-row align-start"><div><span className="detail-label">Текст</span><p className="ad-body">{ad.body}</p></div><Button variant="ghost" size="small" disabled={Boolean(recovery)} onClick={() => { setEditValue(ad.body); openPage({ type: 'edit', id: ad.id, field: 'body' }); }}>Изменить</Button></div>
-          <div className="editable-row"><div><span className="detail-label">Ссылка</span><button className="text-link" onClick={() => openExternal(ad.url)}>{ad.url}</button></div><Button variant="ghost" size="small" disabled={Boolean(recovery)} onClick={() => { setEditValue(ad.url); openPage({ type: 'edit', id: ad.id, field: 'url' }); }}>Изменить</Button></div>
-          <div className="editable-row"><div><span className="detail-label">Категория</span><strong>{ad.category_label}</strong></div><Button variant="ghost" size="small" disabled={Boolean(recovery)} onClick={() => { setEditValue(ad.category); openPage({ type: 'edit', id: ad.id, field: 'category' }); }}>Изменить</Button></div>
-          <div className="editable-row"><div><span className="detail-label">Модель и цена</span><strong>{ad.pricing_label} · {money(ad.price)}</strong><span className="row-secondary">{ad.pricing_unit}</span></div><Button variant="ghost" size="small" disabled={Boolean(recovery)} onClick={() => { setEditValue(ad.price); openPage({ type: 'edit', id: ad.id, field: 'price' }); }}>Изменить</Button></div>
+          <div className="editable-row"><div><span className="detail-label">Заголовок</span><h2>{ad.title}</h2></div><Button aria-label="Изменить заголовок" variant="ghost" size="small" disabled={Boolean(recovery)} onClick={() => { setEditValue(ad.title); openPage({ type: 'edit', id: ad.id, field: 'title' }); }}>Изменить</Button></div>
+          <div className="editable-row align-start"><div><span className="detail-label">Текст</span><p className="ad-body">{ad.body}</p></div><Button aria-label="Изменить текст объявления" variant="ghost" size="small" disabled={Boolean(recovery)} onClick={() => { setEditValue(ad.body); openPage({ type: 'edit', id: ad.id, field: 'body' }); }}>Изменить</Button></div>
+          <div className="editable-row"><div><span className="detail-label">Ссылка</span><button className="text-link" onClick={() => openExternal(ad.url)}>{ad.url}</button></div><Button aria-label="Изменить ссылку" variant="ghost" size="small" disabled={Boolean(recovery)} onClick={() => { setEditValue(ad.url); openPage({ type: 'edit', id: ad.id, field: 'url' }); }}>Изменить</Button></div>
+          <div className="editable-row"><div><span className="detail-label">Категория</span><strong>{ad.category_label}</strong></div><Button aria-label="Изменить категорию" variant="ghost" size="small" disabled={Boolean(recovery)} onClick={() => { setEditValue(ad.category); openPage({ type: 'edit', id: ad.id, field: 'category' }); }}>Изменить</Button></div>
+          <div className="editable-row"><div><span className="detail-label">Цена</span><strong>{ad.pricing_label} · {money(ad.price)}</strong><span className="row-secondary">{ad.pricing_unit}</span></div><Button aria-label="Изменить цену" variant="ghost" size="small" disabled={Boolean(recovery)} onClick={() => { setEditValue(ad.price); openPage({ type: 'edit', id: ad.id, field: 'price' }); }}>Изменить</Button></div>
         </section>
         <section className="ad-budget-section">
-          <div className="section-heading"><h2>Бюджет</h2><p>Пополнение показывается как демо и не списывает деньги</p></div>
+          <div className="section-heading"><h2>Бюджет</h2><p>Демо-пополнение · без списания денег</p></div>
           <div className="budget-numbers"><strong>{money(ad.budget_left)}</strong><span>из {money(ad.budget_total)}</span></div>
           <div className="budget-track"><span style={{ width: `${Math.min(100, Math.max(0, Number(ad.budget_total) > 0 ? (Number(ad.budget_left) / Number(ad.budget_total)) * 100 : 0))}%` }} /></div>
           <div className="ad-actions-row">
-            <Button variant="secondary" size="medium" disabled={busy || Boolean(recovery)} onClick={() => { setTopupValue(''); openPage({ type: 'topup', id: ad.id }); }}>Пополнить демо</Button>
-            {ad.status !== 'exhausted' ? <Button variant={ad.status === 'paused' ? 'secondary' : 'destructive'} size="medium" loading={busyAction === 'Приостанавливаем' || busyAction === 'Возобновляем'} disabled={busy || Boolean(recovery)} onClick={() => runMutation<Ad>(`/api/miniapp/ads/${ad.id}/pause`, {
+            <Button variant="secondary" size="medium" disabled={busy || Boolean(recovery)} onClick={() => openPage({ type: 'topup', id: ad.id })}>Пополнить демо</Button>
+            {ad.status !== 'exhausted' ? <Button variant="secondary" size="medium" loading={busyOperation?.kind === 'ad-pause' && busyOperation.entityId === ad.id} disabled={busy || Boolean(recovery)} onClick={() => runMutation<Ad>(`/api/miniapp/ads/${ad.id}/pause`, {
               paused: ad.status === 'active',
-            }, (updated) => { applyAd(updated); }, ad.status === 'active' ? 'Объявление приостановлено' : 'Объявление возобновлено', 'POST', false, ad.status === 'active' ? 'Приостанавливаем' : 'Возобновляем')}>{ad.status === 'active' ? 'Приостановить' : 'Возобновить'}</Button> : null}
+            }, (updated) => { applyAd(updated); }, ad.status === 'active' ? 'Объявление приостановлено' : 'Объявление возобновлено', 'POST', false, { kind: 'ad-pause', entityId: ad.id, action: ad.status === 'active' ? 'pause' : 'resume' }, ['ads', 'stats', 'bootstrap'])}>{busyOperation?.kind === 'ad-pause' && busyOperation.entityId === ad.id ? 'Сохраняем…' : ad.status === 'active' ? 'Приостановить' : 'Возобновить'}</Button> : null}
           </div>
         </section>
         <section className="stats-strip" aria-label="Статистика объявления">
@@ -883,7 +1191,7 @@ function AppContent() {
             <Stat label="Потрачено" value={money(ad.spent)} />
           </> : <p className="no-stats">Пока нет статистики по этому объявлению.</p>}
         </section>
-        <p className="footnote">Объявление сразу участвует в подборе. Реальной оплаты и модерации нет; ERID демонстрационный.</p>
+        <p className="footnote">Объявление сразу участвует в подборе. Модерации нет; ERID демонстрационный.</p>
       </>
     );
   };
@@ -905,6 +1213,7 @@ function AppContent() {
     return (
       <>
         <PageHeader title={preview ? 'Проверьте объявление' : 'Новое объявление'} onBack={goBack} />
+        <form onSubmit={(event) => { event.preventDefault(); if (preview) createAd(); else wizardNext(); }}>
         {!preview ? (
           <>
             <div className="wizard-progress"><span>Шаг {step} из 7</span><div className="progress-track"><span style={{ width: `${(Number(step) / 7) * 100}%` }} /></div></div>
@@ -920,7 +1229,7 @@ function AppContent() {
                   placeholder={current.field === 'url' ? 'https://example.com' : undefined}
                   multiline={current.field === 'body'}
                   inputMode={current.field === 'url' ? 'url' : current.field === 'price' || current.field === 'budget' ? 'decimal' : 'text'}
-                  type={current.field === 'url' ? 'url' : 'text'}
+                  type="text"
                   autoFocus
                   disabled={busy || Boolean(recovery)}
                 />
@@ -928,56 +1237,66 @@ function AppContent() {
               </div>
             ) : null}
             {step === 4 ? (
-              <div className="choice-list" role="group" aria-label="Категории объявлений">
-                {bootstrap?.categories.map((category) => (
-                  <button className={`choice-row ${wizard.values.category === category.code ? 'choice-selected' : ''}`} key={category.code} aria-pressed={wizard.values.category === category.code} onClick={() => saveWizardField('category', category.code)}>
-                    <span>{category.label}{category.regulated ? <span className="regulated-mark"> ⚖</span> : null}</span>
-                    <span className="radio-mark" aria-hidden="true" />
-                  </button>
-                ))}
-                {fieldErrors.category ? <p className="field-error" role="alert">{fieldErrors.category}</p> : null}
-              </div>
+              <>
+                <RadioChoices
+                  label="Категории объявлений"
+                  value={wizard.values.category}
+                  error={fieldErrors.category}
+                  onChange={(value) => saveWizardField('category', value)}
+                  autoFocus
+                  choices={(bootstrap?.categories ?? []).map((category) => ({
+                    value: category.code,
+                    content: <span>{category.label}{category.regulated ? <span className="regulated-mark"> ⚖</span> : null}</span>,
+                  }))}
+                />
+              </>
             ) : null}
             {step === 5 ? (
-              <div className="choice-list" role="radiogroup" aria-label="Модель оплаты">
-                {bootstrap?.pricing_models.map((model) => (
-                  <button className={`choice-row ${wizard.values.pricing_model === model.code ? 'choice-selected' : ''}`} key={model.code} role="radio" aria-checked={wizard.values.pricing_model === model.code} onClick={() => saveWizardField('pricing_model', model.code)}>
-                    <span><strong>{model.label}</strong><small>{model.unit}</small></span><span className="radio-mark" aria-hidden="true" />
-                  </button>
-                ))}
-                {fieldErrors.pricing_model ? <p className="field-error" role="alert">{fieldErrors.pricing_model}</p> : null}
-              </div>
+              <>
+                <RadioChoices
+                  label="Модель оплаты"
+                  value={wizard.values.pricing_model}
+                  error={fieldErrors.pricing_model}
+                  onChange={(value) => saveWizardField('pricing_model', value)}
+                  autoFocus
+                  choices={(bootstrap?.pricing_models ?? []).map((model) => ({
+                    value: model.code,
+                    content: <span><strong>{model.label}</strong><small>{model.unit}</small></span>,
+                  }))}
+                />
+              </>
             ) : null}
             <div className="wizard-actions">
-              <Button variant="secondary" size="large" onClick={goBack}>Назад</Button>
-              <Button variant="primary" size="large" loading={busy} disabled={busy || Boolean(recovery)} onClick={wizardNext}>Продолжить</Button>
+              <span aria-hidden="true" />
+              <Button type="submit" variant="primary" size="large" loading={busyOperation?.kind === 'ad-create'} disabled={busy || Boolean(recovery)}>{busyOperation?.kind === 'ad-create' ? 'Запускаем…' : 'Продолжить'}</Button>
             </div>
-            <button className="cancel-flow" onClick={cancelWizard} disabled={busy}>Отменить создание</button>
+            <button type="button" className="cancel-flow" onClick={cancelWizard} disabled={busy}>Отменить создание</button>
           </>
         ) : (
           <>
             <div className="preview-post">
               <div className="preview-brand">{company || 'Рекламодатель'}</div>
-              <h2>{wizard.values.title}</h2>
+              <h2 data-auto-focus="true" tabIndex={-1}>{wizard.values.title}</h2>
               <p className="preview-body">{wizard.values.body}</p>
               <p className="preview-marking">#Реклама. {company}. erid: присвоим при запуске</p>
-              <button className="preview-link" onClick={() => openExternal(wizard.values.url)}>{wizard.values.url}</button>
+              <button type="button" className="preview-link" onClick={() => openExternal(wizard.values.url)}>{wizard.values.url}</button>
             </div>
             <div className="preview-details">
               <div className="detail-pair"><span>Категория</span><strong>{categoryLabel}</strong></div>
               <div className="detail-pair"><span>Модель оплаты</span><strong>{priceModel?.label} · {money(wizard.values.price)} {priceModel?.unit}</strong></div>
               <div className="detail-pair"><span>Бюджет</span><strong>{money(wizard.values.budget)}</strong></div>
             </div>
-            <div className="demo-note">Пополнение бюджета демонстрационное. Реальной оплаты и модерации нет; ERID демонстрационный.</div>
+            <div className="demo-note">Запуск добавит объявление в подбор. Платёжной интеграции и модерации нет; ERID демонстрационный.</div>
             {error ? <div className="inline-error" role="alert">{error}</div> : null}
             {Object.entries(fieldErrors).map(([key, message]) => message ? <p className="field-error" role="alert" key={key}>{message}</p> : null)}
             <div className="wizard-actions preview-actions">
-              <Button variant="secondary" size="large" onClick={goBack} disabled={busy}>Назад</Button>
-              <Button variant="primary" size="large" loading={busy} disabled={busy || Boolean(recovery)} onClick={createAd}>Запустить объявление</Button>
+              <span aria-hidden="true" />
+              <Button type="submit" variant="primary" size="large" loading={busyOperation?.kind === 'ad-create'} disabled={busy || Boolean(recovery)}>{busyOperation?.kind === 'ad-create' ? 'Запускаем…' : 'Запустить объявление'}</Button>
             </div>
-            <button className="cancel-flow" onClick={cancelWizard} disabled={busy}>Отменить создание</button>
+            <button type="button" className="cancel-flow" onClick={cancelWizard} disabled={busy}>Отменить создание</button>
           </>
         )}
+        </form>
       </>
     );
   };
@@ -985,25 +1304,48 @@ function AppContent() {
   const renderEdit = () => {
     if (page.type !== 'edit') return null;
     const ad = adsData?.ads.find((item) => item.id === page.id);
-    if (!ad) return <Skeleton />;
+    if (!ad) return adRouteFallback('Редактирование');
     const labels = { title: 'Заголовок', body: 'Текст объявления', url: 'Ссылка', price: 'Цена', category: 'Категория' };
     const categoryField = page.field === 'category';
+    const saveEdit = () => {
+      if (!bootstrap) return;
+      const message = validateAdEditField(page.field, editValue, bootstrap);
+      if (message) { setFieldErrors({ [page.field]: message }); return; }
+      const value = page.field === 'price' ? normalizedMoney(editValue) : editValue.trim();
+      if (!value) { setFieldErrors({ price: 'Укажите сумму от 0,01 до 100 000 000 ₽.' }); return; }
+      const serverValue = page.field === 'price' ? normalizedMoney(ad.price) : String(ad[page.field]).trim();
+      if (value === serverValue) {
+        setFieldErrors({});
+        setPage({ type: 'ad', id: ad.id });
+        return;
+      }
+      runMutation<Ad>(`/api/miniapp/ads/${ad.id}/field`, { field: page.field, value }, (updated, stillOnOrigin) => {
+        applyAd(updated);
+        if (stillOnOrigin()) setPage({ type: 'ad', id: ad.id });
+      }, 'Изменения сохранены', 'PUT', false, { kind: 'ad-edit', entityId: ad.id, field: page.field }, ['ads', 'stats', 'bootstrap']);
+    };
     return (
       <>
         <PageHeader title={labels[page.field]} onBack={goBack} />
+        <form onSubmit={(event) => { event.preventDefault(); saveEdit(); }}>
         {categoryField ? (
-          <div className="choice-list" role="radiogroup" aria-label="Новая категория">
-            {bootstrap?.categories.map((category) => (
-              <button key={category.code} className={`choice-row ${editValue === category.code ? 'choice-selected' : ''}`} role="radio" aria-checked={editValue === category.code} onClick={() => setEditValue(category.code)}><span>{category.label}{category.regulated ? <span className="regulated-mark"> ⚖</span> : null}</span><span className="radio-mark" /></button>
-            ))}
-          </div>
+          <RadioChoices
+            label="Новая категория"
+            value={editValue}
+            error={fieldErrors.category}
+            onChange={(value) => { setEditValue(value); setFieldErrors((current) => ({ ...current, category: '' })); }}
+            autoFocus
+            choices={(bootstrap?.categories ?? []).map((category) => ({
+              value: category.code,
+              content: <span>{category.label}{category.regulated ? <span className="regulated-mark"> ⚖</span> : null}</span>,
+            }))}
+          />
         ) : (
-          <Field label={labels[page.field]} value={editValue} onChange={setEditValue} error={fieldErrors[page.field]} maxLength={page.field === 'title' ? bootstrap?.limits.title : page.field === 'body' ? bootstrap?.limits.body : page.field === 'url' ? bootstrap?.limits.url : undefined} multiline={page.field === 'body'} inputMode={page.field === 'url' ? 'url' : page.field === 'price' ? 'decimal' : 'text'} type={page.field === 'url' ? 'url' : 'text'} autoFocus disabled={busy || Boolean(recovery)} />
+          <Field label={labels[page.field]} value={editValue} onChange={(value) => { setEditValue(value); setFieldErrors((current) => ({ ...current, [page.field]: '' })); }} error={fieldErrors[page.field]} maxLength={page.field === 'title' ? bootstrap?.limits.title : page.field === 'body' ? bootstrap?.limits.body : page.field === 'url' ? bootstrap?.limits.url : undefined} multiline={page.field === 'body'} inputMode={page.field === 'url' ? 'url' : page.field === 'price' ? 'decimal' : 'text'} type="text" autoFocus disabled={busy || Boolean(recovery)} />
         )}
         {error ? <div className="inline-error" role="alert">{error}</div> : null}
-        <div className="screen-action"><Button variant="primary" size="large" stretched loading={busy} disabled={busy || Boolean(recovery) || !editValue.trim()} onClick={() => runMutation<Ad>(`/api/miniapp/ads/${ad.id}/field`, {
-          field: page.field, value: editValue,
-        }, (updated) => { applyAd(updated); setPage({ type: 'ad', id: ad.id }); }, 'Изменения сохранены', 'PUT', false, 'Сохраняем')}>Сохранить</Button></div>
+        <div className="screen-action"><Button type="submit" variant="primary" size="large" stretched loading={busyOperation?.kind === 'ad-edit' && busyOperation.entityId === ad.id} disabled={busy || Boolean(recovery)}>{busyOperation?.kind === 'ad-edit' && busyOperation.entityId === ad.id ? 'Сохраняем…' : 'Сохранить'}</Button></div>
+        </form>
       </>
     );
   };
@@ -1011,55 +1353,46 @@ function AppContent() {
   const renderTopup = () => {
     if (page.type !== 'topup') return null;
     const ad = adsData?.ads.find((item) => item.id === page.id);
+    if (!ad) return adRouteFallback('Пополнение бюджета');
+    const submitTopup = () => {
+      const amount = normalizedMoney(topupValue);
+      if (!amount) { setFieldErrors({ amount: 'Укажите сумму от 0,01 до 100 000 000 ₽.' }); return; }
+      runMutation<Ad>(`/api/miniapp/ads/${page.id}/topup`, { amount }, (updated, stillOnOrigin) => {
+        applyAd(updated);
+        setTopupValue('');
+        if (stillOnOrigin()) setPage({ type: 'ad', id: updated.id });
+      }, `Бюджет пополнен на ${money(amount)} (демо)`, 'POST', false, { kind: 'ad-topup', entityId: page.id }, ['ads', 'stats', 'bootstrap']);
+    };
     return (
       <>
         <PageHeader title="Пополнение бюджета" onBack={goBack} />
-        <section className="surface form-surface">
+        <form className="surface form-surface" onSubmit={(event) => { event.preventDefault(); submitTopup(); }}>
           <h2>{ad?.title}</h2>
           <div className="demo-note">Демонстрационное пополнение: сумма изменится в кабинете, реальные деньги не списываются.</div>
-          <Field label="Сумма, ₽" value={topupValue} onChange={setTopupValue} error={fieldErrors.amount} inputMode="decimal" placeholder="Например, 500" autoFocus disabled={busy || Boolean(recovery)} />
+          <Field label="Сумма, ₽" value={topupValue} onChange={(value) => { setTopupValue(value); setFieldErrors((current) => ({ ...current, amount: '' })); }} error={fieldErrors.amount} inputMode="decimal" placeholder="Например, 500" autoFocus disabled={busy || Boolean(recovery)} />
           {error ? <div className="inline-error" role="alert">{error}</div> : null}
-          <Button variant="primary" size="large" stretched loading={busy} disabled={busy || Boolean(recovery) || !topupValue.trim()} onClick={() => runMutation<Ad>(`/api/miniapp/ads/${page.id}/topup`, { amount: topupValue }, (updated) => {
-            applyAd(updated);
-            setPage({ type: 'ad', id: updated.id });
-          }, `Бюджет пополнен на ${money(topupValue)} (демо)`, 'POST', false, 'Пополняем')}>Пополнить демо</Button>
-        </section>
+          <Button type="submit" variant="primary" size="large" stretched loading={busyOperation?.kind === 'ad-topup' && busyOperation.entityId === page.id} disabled={busy || Boolean(recovery)}>{busyOperation?.kind === 'ad-topup' && busyOperation.entityId === page.id ? 'Пополняем…' : 'Пополнить демо'}</Button>
+        </form>
       </>
     );
   };
 
-  const renderBrandPage = () => (
-    <>
-      <PageHeader title="Кабинет рекламодателя" onBack={goBack} />
-      <section className="surface form-surface">
-        <h2>Название компании или бренда</h2>
-        <p className="muted-copy">Это название появится в маркировке рекламы.</p>
-        <Field label="Компания или бренд" value={brandName} onChange={setBrandName} maxLength={bootstrap?.limits.company_name} error={fieldErrors.name} autoComplete="organization" disabled={busy || Boolean(recovery)} />
-        {error ? <div className="inline-error" role="alert">{error}</div> : null}
-        <Button variant="primary" size="large" stretched loading={busy} disabled={busy || Boolean(recovery) || !brandName.trim()} onClick={() => runMutation<{ name: string }>('/api/miniapp/advertiser', { name: brandName }, async (data) => {
-          setAdsData({ advertiser: { name: data.name }, ads: [] });
-          setBootstrap((current) => current ? { ...current, advertiser: { exists: true, name: data.name, ad_count: 0 } } : current);
-          setBrandName('');
-          setPage({ type: 'tabs' });
-          setTab('ads');
-        }, 'Название сохранено', 'POST', false, 'Сохраняем')}>Продолжить</Button>
-      </section>
-    </>
-  );
-
   return (
     <MaxUI>
       <div className="max-app">
-        {error && page.type !== 'create' && page.type !== 'edit' && page.type !== 'topup' && page.type !== 'brand' ? <div className="global-error" role="alert">{error}<button onClick={() => void refresh(true)}>Обновить</button></div> : null}
+        {error && page.type !== 'create' && page.type !== 'edit' && page.type !== 'topup' ? <div className="global-error" role="alert">{error}<button onClick={() => { setError(''); if (tab === 'ads') void loadAds(true); else if (tab === 'stats') void loadStats(true); else if (page.type === 'channel') void loadChannel(page.id, true); else void refresh(true); }}>Обновить</button></div> : null}
         {recoveryBanner}
-        {page.type === 'tabs' ? <main className="page-content">{renderTabs()}</main> : (
+        {page.type === 'tabs' ? <main className="page-content">
+          {bootstrapState.refreshing ? <p className="muted-copy" role="status">Обновляем данные сервиса…</p> : null}
+          {bootstrapState.error ? <div className="inline-error" role="alert">Не удалось обновить данные сервиса: {bootstrapState.error} <button className="plain-action" onClick={() => void refresh(true)}>Повторить</button></div> : null}
+          {renderTabs()}
+        </main> : (
           <main className="page-content subpage">
             {page.type === 'channel' ? renderChannelPage() : null}
             {page.type === 'ad' ? renderAdPage() : null}
             {page.type === 'create' ? renderCreate() : null}
             {page.type === 'edit' ? renderEdit() : null}
             {page.type === 'topup' ? renderTopup() : null}
-            {page.type === 'brand' ? renderBrandPage() : null}
           </main>
         )}
         {page.type === 'tabs' ? <TabBar active={tab} onChange={changeTab} /> : null}
@@ -1071,14 +1404,14 @@ function AppContent() {
 }
 
 function PageHeading({ title, subtitle }: { title: string; subtitle?: string }) {
-  return <header className="page-heading"><h1>{title}</h1>{subtitle ? <p>{subtitle}</p> : null}</header>;
+  return <header className="page-heading"><h1 data-route-heading tabIndex={-1}>{title}</h1>{subtitle ? <p>{subtitle}</p> : null}</header>;
 }
 
 function PageHeader({ title, onBack, refreshing, onRefresh }: { title: string; onBack: () => void; refreshing?: boolean; onRefresh?: () => void }) {
   return (
     <header className="subpage-heading">
       <button className="back-control" onClick={onBack} aria-label="Назад"><Icon name="back" /><span>Назад</span></button>
-      <h1>{title}</h1>
+      <h1 data-route-heading tabIndex={-1}>{title}</h1>
       {onRefresh ? <button className="refresh-control" onClick={onRefresh} disabled={refreshing}>{refreshing ? 'Обновляем…' : 'Обновить'}</button> : <span className="heading-spacer" />}
     </header>
   );
@@ -1101,21 +1434,83 @@ function TabBar({ active, onChange }: { active: Tab; onChange: (tab: Tab) => voi
   );
 }
 
+function RadioChoices({
+  label,
+  value,
+  choices,
+  onChange,
+  error,
+  autoFocus = false,
+}: {
+  label: string;
+  value: string;
+  choices: Array<{ value: string; content: React.ReactNode }>;
+  onChange: (value: string) => void;
+  error?: string;
+  autoFocus?: boolean;
+}) {
+  const errorId = `choice-error-${label.toLowerCase().replace(/[^a-zа-я0-9]+/gi, '-')}`;
+  function moveFocus(event: React.KeyboardEvent<HTMLButtonElement>, index: number) {
+    const delta = event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 1
+      : event.key === 'ArrowUp' || event.key === 'ArrowLeft' ? -1
+        : event.key === 'Home' ? -choices.length
+          : event.key === 'End' ? choices.length
+            : 0;
+    if (!delta || !choices.length) return;
+    event.preventDefault();
+    const nextIndex = event.key === 'Home' ? 0 : event.key === 'End' ? choices.length - 1 : (index + delta + choices.length) % choices.length;
+    onChange(choices[nextIndex].value);
+    (event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="radio"]') ?? [])[nextIndex]?.focus();
+  }
+
+  return (
+    <>
+      <div className="choice-list" role="radiogroup" aria-label={label} aria-invalid={error ? true : undefined} aria-describedby={error ? errorId : undefined}>
+      {choices.map((choice, index) => {
+        const selected = value === choice.value;
+        const hasSelection = choices.some((item) => item.value === value);
+        const firstTabStop = !hasSelection && index === 0;
+        return (
+          <button
+            type="button"
+            key={choice.value}
+            className={`choice-row ${selected ? 'choice-selected' : ''}`}
+            role="radio"
+            aria-checked={selected}
+            tabIndex={selected || firstTabStop ? 0 : -1}
+            data-auto-focus={autoFocus && (selected || firstTabStop) ? 'true' : undefined}
+            onKeyDown={(event) => moveFocus(event, index)}
+            onClick={() => onChange(choice.value)}
+          >
+            {choice.content}<span className="radio-mark" aria-hidden="true" />
+          </button>
+        );
+      })}
+      </div>
+      {error ? <p className="field-error" id={errorId} role="alert">{error}</p> : null}
+    </>
+  );
+}
+
 function ProposalCard({
   proposal,
   busy,
-  busyAction,
+  busyOperation,
   recovering,
   nextDisabled,
+  nextUnavailableReason,
   onAction,
 }: {
   proposal: NonNullable<ChannelDetail['proposal']>;
   busy: boolean;
-  busyAction: string;
+  busyOperation: BusyOperation | null;
   recovering: boolean;
   nextDisabled: boolean;
+  nextUnavailableReason: string;
   onAction: (action: 'approve' | 'reject' | 'next' | 'block_cat') => void;
 }) {
+  const proposalBusy = busyOperation?.kind === 'proposal' && busyOperation.entityId === proposal.id;
+  const actionBusy = (action: 'approve' | 'reject' | 'next' | 'block_cat') => proposalBusy && busyOperation.action === action;
   return (
     <div className="proposal-card">
       <div className="offer-main">
@@ -1130,24 +1525,49 @@ function ProposalCard({
       </details>
       <div className="proposal-actions">
         <div className="primary-actions">
-          <Button variant="primary" size="large" stretched loading={busy && busyAction === 'Сохраняем'} disabled={busy || recovering} onClick={() => onAction('approve')}>Одобрить</Button>
-          <Button variant="secondary" size="large" stretched loading={busy && busyAction === 'Ищем вариант'} disabled={busy || recovering || nextDisabled} onClick={() => onAction('next')}>Другой вариант</Button>
+          <Button variant="primary" size="large" stretched loading={actionBusy('approve')} disabled={busy || recovering} onClick={() => onAction('approve')}>{actionBusy('approve') ? 'Одобряем…' : 'Одобрить'}</Button>
+          <Button variant="secondary" size="large" stretched loading={actionBusy('next')} disabled={busy || recovering || nextDisabled} onClick={() => onAction('next')}>{actionBusy('next') ? 'Ищем вариант…' : 'Другой вариант'}</Button>
         </div>
-        <Button variant="destructive" size="large" stretched disabled={busy || recovering} onClick={() => onAction('reject')}>Отклонить это объявление</Button>
+        {nextDisabled && nextUnavailableReason ? <p className="muted-copy" role="status">{nextUnavailableReason}</p> : null}
+        <Button variant="destructive" size="large" stretched loading={actionBusy('reject')} disabled={busy || recovering} onClick={() => onAction('reject')}>{actionBusy('reject') ? 'Отклоняем…' : 'Отклонить это объявление'}</Button>
         <div className="category-block-action">
           <span>Больше не показывать рекламу из категории «{proposal.category_label}» в этом канале</span>
-          <Button variant="destructive" size="large" stretched disabled={busy || recovering} onClick={() => onAction('block_cat')}>Не предлагать категорию</Button>
+          <Button variant="destructive" size="large" stretched loading={actionBusy('block_cat')} disabled={busy || recovering} onClick={() => onAction('block_cat')}>{actionBusy('block_cat') ? 'Сохраняем запрет…' : 'Не предлагать категорию'}</Button>
         </div>
       </div>
     </div>
   );
 }
 
-function StatsScreen({ data }: { data: StatsData | null }) {
-  if (!data || (data.channels.length === 0 && !data.advertiser)) {
+function ResourceMessage({ title, error, loading, onRetry }: { title: string; error: string; loading: boolean; onRetry: () => void }) {
+  return (
+    <section className="empty-state compact-empty" aria-busy={loading}>
+      <h2>{title}</h2>
+      {error ? <p role="alert">{error}</p> : null}
+      <Button variant="secondary" size="large" stretched loading={loading} disabled={loading} onClick={onRetry}>Повторить загрузку</Button>
+    </section>
+  );
+}
+
+function StatsScreen({ data, state, onRetry }: { data: StatsData | null; state: ResourceState; onRetry: () => void }) {
+  if (!data) {
     return (
       <>
         <PageHeading title="Статистика" subtitle="Данные обновляются после сбора просмотров и кликов" />
+        <ResourceMessage
+          title={state.status === 'loading' ? 'Загружаем статистику' : 'Не удалось загрузить статистику'}
+          error={state.error}
+          loading={state.status === 'loading' || state.refreshing}
+          onRetry={onRetry}
+        />
+      </>
+    );
+  }
+  if (data.channels.length === 0 && !data.advertiser) {
+    return (
+      <>
+        <PageHeading title="Статистика" subtitle="Данные обновляются после сбора просмотров и кликов" />
+        {state.error ? <div className="inline-error" role="alert">Не удалось обновить статистику: {state.error} <button className="plain-action" onClick={onRetry}>Повторить</button></div> : null}
         <section className="empty-state compact-empty"><h2>Пока нет статистики</h2><p>Здесь появятся показатели каналов и ваших объявлений, когда начнутся размещения.</p></section>
       </>
     );
@@ -1155,6 +1575,8 @@ function StatsScreen({ data }: { data: StatsData | null }) {
   return (
     <>
       <PageHeading title="Статистика" subtitle="Доход канала и расход рекламодателя показаны отдельно" />
+      {state.error ? <div className="inline-error" role="alert">Не удалось обновить статистику: {state.error} <button className="plain-action" onClick={onRetry}>Повторить</button></div> : null}
+      {state.refreshing ? <p className="muted-copy" role="status">Обновляем статистику…</p> : null}
       {data.channels.length ? (
         <section className="stats-section">
           <h2>Доход каналов</h2>
@@ -1211,8 +1633,14 @@ function PeriodStats({ days, stats }: { days: '7' | '30'; stats: ChannelStats })
 }
 
 function openExternal(url: string) {
-  if (window.WebApp?.openLink) window.WebApp.openLink(url);
-  else window.open(url, '_blank', 'noopener,noreferrer');
+  try {
+    const destination = new URL(url);
+    if (destination.protocol !== 'http:' && destination.protocol !== 'https:') return;
+    if (window.WebApp?.openLink) window.WebApp.openLink(destination.toString());
+    else window.open(destination.toString(), '_blank', 'noopener,noreferrer');
+  } catch {
+    // Invalid or relative addresses are not opened outside the app.
+  }
 }
 
 export default function App() {

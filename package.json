@@ -7,7 +7,8 @@
     "dev": "vite frontend --host 0.0.0.0",
     "build": "tsc -p frontend/tsconfig.json && vite build frontend",
     "preview": "vite preview frontend --host 0.0.0.0",
-    "typecheck": "tsc -p frontend/tsconfig.json"
+    "typecheck": "tsc -p frontend/tsconfig.json",
+    "test": "node --experimental-strip-types --test frontend/test/*.test.mjs"
   },
   "dependencies": {
     "@maxhub/max-ui": "^0.5.0",
